@@ -14,13 +14,33 @@ from importlib.machinery import SourceFileLoader
 quicktracer = SourceFileLoader("module.name", r"C:\Users\dom\Documents\GitHub\quicktracer\quicktracer\__init__.py").load_module()
 trace = quicktracer.trace
 
-
+def mag(vec):
+    ''' magnitude/length of a vector '''
+    return np.linalg.norm(vec)
+def normalize(vec):
+    magnitude = mag(vec)
+    if not magnitude: return vec
+    return vec / magnitude
+def vec2angle(vec):
+    return math.atan2(vec[1], vec[0])
 def rotate90degrees(xy):
-    return np.array([-xy[1], xy[0]])
+    return np.array([xy[1], -xy[0]])
+def closest180(angle):
+    return ((angle+UCONST_Pi) % (2*UCONST_Pi)) - UCONST_Pi
+def clamp(x, bot, top):
+    return min(top, max(bot, x))
+def clamp01(x):
+    return clamp(x, 0.0, 1.0)
+def clamp11(x):
+    return clamp(x, -1.0, 1.0)
+def lerp(v0, v1, t):  # linear interpolation
+  return (1 - t) * v0 + t * v1;
+
 
 UCONST_Pi = 3.1415926
 URotation180 = float(32768)
 URotationToRadians = UCONST_Pi / URotation180
+tau = 2*UCONST_Pi
 
 
 
@@ -29,64 +49,94 @@ class Agent:
         self.name = name
         self.team = team  # 0 towards positive goal, 1 towards negative goal.
         self.index = index
+        self.last_circle_facing_angle = 0
 
 
     def get_output_vector(self, game_tick_packet):
-
-        # return [
-        #     1.0,    # fThrottle
-        #     1,   # fSteer
-        #     0.0,    # fPitch
-        #     0.0,    # fYaw
-        #     0.0,    # fRoll
-        #     0,      # bJump
-        #     0,      # bBoost
-        #     0       # bHandbrake
-        # ]
-
-
-        # trace(controller.fThrottle)
-        # trace(controller.fSteer)
-        # trace(controller.fYaw)
+        my_car = game_tick_packet.gamecars[self.index]
 
         player_pos = np.array([
-            game_tick_packet.gamecars[self.index].Location.X,
-            game_tick_packet.gamecars[self.index].Location.Y,
+            my_car.Location.X,
+            my_car.Location.Y,
         ])
         player_vel = np.array([
-            game_tick_packet.gamecars[self.index].Velocity.X,
-            game_tick_packet.gamecars[self.index].Velocity.Y,
+            my_car.Velocity.X,
+            my_car.Velocity.Y,
         ])
-        pitch = URotationToRadians * float(game_tick_packet.gamecars[self.index].Rotation.Pitch)
-        yaw = URotationToRadians * float(game_tick_packet.gamecars[self.index].Rotation.Yaw)
-        player_facing = np.array([
+        pitch = URotationToRadians * float(my_car.Rotation.Pitch)
+        yaw = URotationToRadians * float(my_car.Rotation.Yaw)
+        player_facing_dir = np.array([
             math.cos(pitch) * math.cos(yaw),
             math.cos(pitch) * math.sin(yaw)
         ])
-        player_right = -rotate90degrees(player_facing)
+        player_right = -rotate90degrees(player_facing_dir)
 
         # score should be positive if going counter clockwise
         target_pos = np.array([0, 0])
-        circle_forward = rotate90degrees(player_pos - target_pos)
+        circle_outward = player_pos - target_pos
+        circle_outward_dir = normalize(circle_outward)
+        circle_forward_dir = rotate90degrees(circle_outward_dir)
         drifting_score = player_vel.dot(player_right)
-        going_around_target_score = circle_forward.dot(player_vel)
+        going_around_target_score = circle_forward_dir.dot(player_vel)
         score = going_around_target_score * drifting_score
 
         steer = controller.fSteer
         steer = round(steer)
+        # trace(drifting_score)
+        # trace(-steer)
+        # trace(player_pos)
 
-        trace(drifting_score)
-        trace(-steer)
-        trace(player_pos)
+        circle_facing_dir = np.array([
+            player_facing_dir.dot(circle_outward_dir),
+            player_facing_dir.dot(circle_forward_dir),
+        ])
+
+        # trace(player_facing_dir.dot(circle_forward_dir))
+        # trace(player_facing_dir.dot(circle_outward_dir))
+        circle_facing_angle = vec2angle(circle_facing_dir)  # 0=outward, tau/4=forward
+        # trace(circle_facing_angle)
+
+        boost = 1
+
+        outward_dist = mag(circle_outward)
+        steer_dist_inner = 400 if boost else 0
+        steer_dist_outer = 2500 if boost else 1500
+        should_hard_steer = 1-clamp01((outward_dist - steer_dist_inner) / (steer_dist_outer - steer_dist_inner))
+        # trace(outward_dist)
+        # trace(should_hard_steer)
+        # trace(outward_dist-steer_dist_inner)
+        desired_angle = lerp(tau*.37, tau*.51, should_hard_steer)
+        # if  > 1000: desired_angle = TAU*.3
+        # # if mag(circle_outward_dir) > 1000: desired_angle = 1
+        # else: desired_angle = TAU*.45
+
+        if controller.hat_toggle_north:
+            return [
+                controller.fThrottle,
+                steer,
+                controller.fPitch,
+                controller.fYaw,
+                controller.fRoll,
+                controller.bJump,
+                controller.bBoost,
+                controller.bHandbrake,
+            ]
+
+
+
+        steer = closest180(circle_facing_angle - desired_angle) * 4
+        turning_rate = my_car.AngularVelocity.Z
+        PID_vel_thingy = 0.8 if boost else 0.5
+        steer -= PID_vel_thingy * turning_rate  # PID loop, essentially
 
         return [
-            controller.fThrottle,
-            steer,
-            controller.fPitch,
-            controller.fYaw,
-            controller.fRoll,
-            controller.bJump,
-            controller.bBoost,
-            controller.bHandbrake,
+            1.0,    # fThrottle
+            clamp11(steer),   # fSteer
+            0.0,    # fPitch
+            0.0,    # fYaw
+            0.0,    # fRoll
+            0,      # bJump
+            boost,      # bBoost
+            1       # bHandbrake
         ]
 
