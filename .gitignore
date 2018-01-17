@@ -99,3 +99,4 @@ ENV/
 
 # mypy
 .mypy_cache/
+.bakkes_repl_history.txt
