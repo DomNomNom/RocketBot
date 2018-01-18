@@ -29,10 +29,12 @@ def convert_tick_packet_to_command(game_tick_packet):
     commands.append('ball location {} {} {}'.format(ball.Location.X, ball.Location.Y, ball.Location.Z))
     commands.append('ball velocity {} {} {}'.format(ball.Velocity.X, ball.Velocity.Y, ball.Velocity.Z))
     commands.append('ball rotation {} {} {}'.format(ball.Rotation.Pitch, ball.Rotation.Yaw, ball.Rotation.Roll))
+    commands.append('ball angularvelocity {} {} {}'.format(ball.AngularVelocity.X, ball.AngularVelocity.Y, ball.AngularVelocity.Z))
     for i, car in enumerate(game_tick_packet.gamecars[:game_tick_packet.numCars]):
         commands.append('player {} location {} {} {}'.format(i, car.Location.X, car.Location.Y, car.Location.Z))
         commands.append('player {} velocity {} {} {}'.format(i, car.Velocity.X, car.Velocity.Y, car.Velocity.Z))
         commands.append('player {} rotation {} {} {}'.format(i, car.Rotation.Pitch, car.Rotation.Yaw, car.Rotation.Roll))
+        commands.append('player {} angularvelocity {} {} {}'.format(i, car.AngularVelocity.X, car.AngularVelocity.Y, car.AngularVelocity.Z))
     return ';'.join(commands)
 
 ###### End public interface ######
