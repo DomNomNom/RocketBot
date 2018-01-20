@@ -20,3 +20,8 @@
 [22:53] DomNomNom: https://youtu.be/2prUSf6nTI0
 [23:37] Redox (RedoxBot rip): Haha this is amazing
 [00:49] Skyborg: new use for bots, studying planet orbits. great work btw, looks awesome
+
+2018-01-19
+[23:55] DomNomNom: https://github.com/drssoccer55/RLBot/pull/30
+2018-01-20
+[00:43] tarehart (ReliefBot): Thanks for contributing again
