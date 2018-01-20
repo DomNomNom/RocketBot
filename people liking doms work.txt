@@ -1,22 +1,22 @@
 
 2018-01-12
-[12:13 AM] DomNomNom: https://gist.github.com/DomNomNom/89796a34bd6939ea8994f3b1718f1774
-[1:34 AM] dtracers (Saltie): Waaaaaaaaa that's amazing
-[1:35 AM] dtracers (Saltie): Do you know how long I've been waiting for that :O
+[00:13] DomNomNom: https://gist.github.com/DomNomNom/89796a34bd6939ea8994f3b1718f1774
+[01:34] dtracers (Saltie): Waaaaaaaaa that's amazing
+[01:35] dtracers (Saltie): Do you know how long I've been waiting for that :O
 
 2018-01-12
-[11:37 PM] DomNomNom: I sent a pull request for refreshing Agents when they get updated: https://github.com/drssoccer55/RLBot/pull/28/files#diff-5b35284c18e07166ad9396566dab67a8R78
-[11:40 PM] Skyborg: that's awesome, i've wished for that already
+[23:37] DomNomNom: I sent a pull request for refreshing Agents when they get updated: https://github.com/drssoccer55/RLBot/pull/28/files#diff-5b35284c18e07166ad9396566dab67a8R78
+[23:40] Skyborg: that's awesome, i've wished for that already
 2018-01-13
-[1:30 AM] Redox (RedoxBot rip): Wow that sounds awesome!
-[1:30 AM] Redox (RedoxBot rip): Great work
+[01:30] Redox (RedoxBot rip): Wow that sounds awesome!
+[01:30] Redox (RedoxBot rip): Great work
 
 2018-01-14
-[1:12 AM] DomNomNom: Success! https://www.reddit.com/r/RocketLeague/comments/7q4rdw/when_everyone_misses_the_ball_just_right/
-[1:14 AM] Redox (RedoxBot rip): Wow nice!
-[1:15 AM] Redox (RedoxBot rip): Perfect loop as well
+[01:12] DomNomNom: Success! https://www.reddit.com/r/RocketLeague/comments/7q4rdw/when_everyone_misses_the_ball_just_right/
+[01:14] Redox (RedoxBot rip): Wow nice!
+[01:15] Redox (RedoxBot rip): Perfect loop as well
 
 2018-01-14
-[10:53 PM] DomNomNom: https://youtu.be/2prUSf6nTI0
-[11:37 PM] Redox (RedoxBot rip): Haha this is amazing
-[12:49 AM] Skyborg: new use for bots, studying planet orbits. great work btw, looks awesome
+[22:53] DomNomNom: https://youtu.be/2prUSf6nTI0
+[23:37] Redox (RedoxBot rip): Haha this is amazing
+[00:49] Skyborg: new use for bots, studying planet orbits. great work btw, looks awesome
