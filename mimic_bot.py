@@ -55,6 +55,10 @@ class Agent:
     def get_output_vector(self, game_tick_packet):
         time = game_tick_packet.gameInfo.TimeSeconds
 
+        if self.last_time is not None:
+            trace(time - self.last_time)
+        self.last_time = time
+
         # State transition
         if self.state == STATE_MIMIC and controller.hat_toggle_west:  # mimic -> record
             self.clear_recording(time)
@@ -93,12 +97,12 @@ class Agent:
             'gameball': all,
             'gamecars': all,
         })
-        def diff(mask):
-            deviation = ctype_utils.struct_rms_deviation(expected_state, game_tick_packet, mask=mask)
-            return min(deviation, 1000000)
-        trace(diff({'gamecars': {0: {'AngularVelocity': all, }}}))
-        trace(diff({'gamecars': {0: {'Velocity': all, }}}))
-        trace(diff({'gamecars': {0: {'Location': all, }}}))
+        # def diff(mask):
+        #     deviation = ctype_utils.struct_rms_deviation(expected_state, game_tick_packet, mask=mask)
+        #     return min(deviation, 1000000)
+        # trace(diff({'gamecars': {0: {'AngularVelocity': all, }}}))
+        # trace(diff({'gamecars': {0: {'Velocity': all, }}}))
+        # trace(diff({'gamecars': {0: {'Location': all, }}}))
         # trace(packet_diff)
 
         return [
