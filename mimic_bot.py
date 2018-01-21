@@ -1,4 +1,4 @@
-from utils import main, EasyGameState
+from utils import main, EasyGameState, clamp01, clamp11
 if __name__ == '__main__':
     main()  # blocking
 
@@ -49,8 +49,7 @@ class Agent:
         self.team = team
         self.index = index
         self.state = STATE_MIMIC
-        # self.state = STATE_RECORD
-        controller.hat_toggle_west = True
+        # controller.hat_toggle_west = True  # self.state = STATE_RECORD
         self.clear_recording(0.0)
         self.first_time = True
         self.last_time = None
@@ -147,11 +146,6 @@ class Agent:
     def record(self, time, game_tick_packet):
 
         state = EasyGameState(game_tick_packet, self.index)
-        # trace(state.car_pos)
-        trace(state.car_forward)
-        trace(state.car_right)
-        trace(state.car_up)
-        trace(state.pyr)
 
         time = time - self.record_start_time
 

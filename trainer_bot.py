@@ -1,5 +1,4 @@
-from utils import main, mag, normalize, vec2angle, rotate90degrees, closest180, clamp, clamp01, clamp11, lerp, tau, URotationToRadians, EasyGameState
-
+from utils import main, sanitize_output_vector, EasyGameState
 if __name__ == '__main__':
     main()  # blocking
 
@@ -29,4 +28,4 @@ class Agent(mimic_bot.Agent):
             self.frames_until_scoring -= 1
             return [0]*8
 
-        return self.student.get_output_vector(EasyGameState(game_tick_packet, self.index))
+        return sanitize_output_vector(self.student.get_output_vector(EasyGameState(game_tick_packet, self.index)))

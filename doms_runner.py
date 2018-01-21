@@ -36,16 +36,18 @@ def start_rl_bot():
     read_err = threading.Thread(target=print_file, args=[child_process.stderr], daemon=True)
     read_err.start()
 
+def KILL(process):
+    try:
+        process.kill()
+    except psutil._exceptions.NoSuchProcess as e:
+        return
 def kill_proc_tree(pid):
     parent = psutil.Process(pid)
     children = parent.children(recursive=True)
-    try:
-        parent.kill() # THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE
-        for child in children: # THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE
-            child.kill()  # THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE
-        gone, still_alive = psutil.wait_procs(children, timeout=5)
-    except psutil._exceptions.NoSuchProcess as e:
-        return
+    KILL(parent) # THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE
+    for child in children: # THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE
+        KILL(child)  # THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE THIS CAN NOT CONTINUE
+    gone, still_alive = psutil.wait_procs(children, timeout=5)
 
 
 def print_file(f):
