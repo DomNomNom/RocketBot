@@ -18,12 +18,12 @@ import imp
 quicktracer = SourceFileLoader("module.name", r"C:\Users\dom\Documents\GitHub\quicktracer\quicktracer\__init__.py").load_module()
 trace = quicktracer.trace
 
-
 import historian
 import bakkes
 # import reloader
 from controller_input import controller
 import ctype_utils
+import slicer
 
 imp.reload(ctype_utils)
 imp.reload(historian)
@@ -31,6 +31,18 @@ imp.reload(bakkes)
 
 STATE_RECORD = 'record'
 STATE_MIMIC = 'mimic'
+
+def player_input_to_vector(player_input):
+    return [
+        player_input.fThrottle,
+        player_input.fSteer,
+        player_input.fPitch,
+        player_input.fYaw,
+        player_input.fRoll,
+        player_input.bJump,
+        player_input.bBoost,
+        player_input.bHandbrake,
+    ]
 
 class Agent:
     def __init__(self, name, team, index):
@@ -44,8 +56,36 @@ class Agent:
         self.history = historian.History()
         self.history.load(descriptor_file_path=None)  # latest
         self.mimic_start_time = -1
+        self.slicer = slicer.Slicer()
+        self.init_slicer(self.slicer, self.history)
+
+    def init_slicer(self, slicer, history):
+        actions = history.get_action_dict()
+        def diff_index(player_input_1, player_input_2):
+            player_input_1 = player_input_to_vector(player_input_1)
+            player_input_2 = player_input_to_vector(player_input_2)
+            for i,(v1, v2) in enumerate(zip(player_input_1, player_input_2)):
+                if v1 != v2:
+                    return i
+            return -1
+        keys = sorted(actions.keys())
+        positions = [[keys[0],-1]] + [
+            [key, diff_index(actions[key], actions[keys[i_minus_one]])]
+            for i_minus_one, key in enumerate(keys[1:])
+        ]
+
+        def set_history_start_end(slicer_min, slicer_max):
+            self.history.start_time = slicer_min
+            self.history.end_time = slicer_max
+            self.mimic_start_time = -1
 
 
+        slicer.set_positions(positions)
+        slicer.set_min_max(history.start_time, history.end_time)
+        slicer.register_min_max_callback(set_history_start_end)
+
+    def retire(self):
+        self.slicer.close_window()
 
     def clear_recording(self, time):
         # self.actions = {}  # time since recording begin -> controller_state
@@ -75,28 +115,25 @@ class Agent:
         elif self.state == STATE_RECORD:
             return self.record(time, game_tick_packet)
 
-
     def mimic(self, time, game_tick_packet):
         action_dict = self.history.get_action_dict()
         keyframe_timestamps = sorted(action_dict.keys())
         if len(keyframe_timestamps) < 2:
             return [0] * 8  # No action
-        replay_duration = max(keyframe_timestamps)
+        replay_duration = self.history.end_time - self.history.start_time
+
+        time_in_history = time - self.mimic_start_time + self.history.start_time
         if time - self.mimic_start_time > replay_duration:
             bakkes_reset_command = bakkes.convert_tick_packet_to_command(
                 self.history.get_closest_game_tick_packet(self.history.start_time)
             )
             bakkes.rcon(bakkes_reset_command)
             self.mimic_start_time = time
-        replay_time = time - self.mimic_start_time
-        key = max([keyframe_timestamps[0]] + [ t for t in keyframe_timestamps if t <= replay_time ])
+        key = max([keyframe_timestamps[0]] + [ t for t in keyframe_timestamps if t <= time_in_history ])
+        trace(key)
         player_input = action_dict[key]
 
-        expected_state = self.history.get_closest_game_tick_packet(replay_time)
-        packet_diff = ctype_utils.struct_rms_deviation(expected_state, game_tick_packet, mask={
-            'gameball': all,
-            'gamecars': all,
-        })
+        # expected_state = self.history.get_closest_game_tick_packet(time_in_history)
         # def diff(mask):
         #     deviation = ctype_utils.struct_rms_deviation(expected_state, game_tick_packet, mask=mask)
         #     return min(deviation, 1000000)
@@ -105,16 +142,7 @@ class Agent:
         # trace(diff({'gamecars': {0: {'Location': all, }}}))
         # trace(packet_diff)
 
-        return [
-            player_input.fThrottle,
-            player_input.fSteer,
-            player_input.fPitch,
-            player_input.fYaw,
-            player_input.fRoll,
-            player_input.bJump,
-            player_input.bBoost,
-            player_input.bHandbrake,
-        ]
+        return player_input_to_vector(player_input)
 
 
     def record(self, time, game_tick_packet):

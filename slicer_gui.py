@@ -31,11 +31,12 @@ def set_spots(spots_json):
     scatter_plot.setData(spots)
 
 def set_region(region_json):
+    global spots
     global region
     min_x = region_json[MIN_X]
     max_x = region_json[MAX_X]
-    if not np.isfinite(min_x): min_x = min(spot[POS][0] for spot in spots())
-    if not np.isfinite(max_x): max_x = max(spot[POS][0] for spot in spots())
+    if not np.isfinite(min_x): min_x = min(spot[POS][0] for spot in spots)
+    if not np.isfinite(max_x): max_x = max(spot[POS][0] for spot in spots)
 
     region.setRegion([min_x, max_x])
 
@@ -59,6 +60,11 @@ def read_input():
         sys.stderr.flush()
         os.exit(-1)
 
+class NonFocusStealingGraphicsWindow(pg.GraphicsWindow):
+    def show(self):
+        self.setAttribute(98) # Qt::WA_ShowWithoutActivating
+        super().show()
+
 
 def main():
     global region
@@ -67,8 +73,9 @@ def main():
 
     # window layout
     app = QtGui.QApplication([])
-    win = pg.GraphicsWindow()
-    win.setWindowTitle('Slicer')
+    win = NonFocusStealingGraphicsWindow(title='Slicer')
+    win.setGeometry(0, 660, 600, 380)
+
     label = pg.LabelItem(justify='right')
     win.addItem(label)
     view_box = win.addPlot(row=1, col=0)
@@ -80,13 +87,13 @@ def main():
     # item when doing auto-range calculations.
     view_box.addItem(region, ignoreBounds=True)
 
-    threading.Thread(target=read_input, daemon=True).start()
 
     # pg.dbg()
-
     scatter_plot = pg.ScatterPlotItem(size=10, pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 255, 120))
     set_spots(spots)
     view_box.addItem(scatter_plot)
+
+    threading.Thread(target=read_input, daemon=True).start()
 
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         QtGui.QApplication.instance().exec_()

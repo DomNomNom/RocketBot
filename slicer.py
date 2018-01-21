@@ -63,10 +63,13 @@ class Slicer(object):
         atexit.register(lambda: self.child_process.kill())  # behave like a daemon
         self.read_out = threading.Thread(target=self.process_messages_from_gui, args=[self.child_process.stdout], daemon=True)
         self.read_out.start()
-        self.read_err = threading.Thread(target=print_file, args=[self.child_process.stderr], daemon=True)
+        self.read_err = threading.Thread(target=print_stderr, args=[self.child_process.stderr], daemon=True)
         self.read_err.start()
 
-def print_file(f):
+    def close_window(self):
+        self.child_process.kill()  # MURDER!
+
+def print_stderr(f):
     for line in f:
         print(line.decode('utf-8').rstrip(), file=sys.stderr)
         sys.stderr.flush()
