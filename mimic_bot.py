@@ -1,5 +1,4 @@
-from utils import main, mag, normalize, vec2angle, rotate90degrees, closest180, clamp, clamp01, clamp11, lerp, tau, URotationToRadians
-
+from utils import main, EasyGameState
 if __name__ == '__main__':
     main()  # blocking
 
@@ -50,6 +49,8 @@ class Agent:
         self.team = team
         self.index = index
         self.state = STATE_MIMIC
+        # self.state = STATE_RECORD
+        controller.hat_toggle_west = True
         self.clear_recording(0.0)
         self.first_time = True
         self.last_time = None
@@ -95,8 +96,9 @@ class Agent:
     def get_output_vector(self, game_tick_packet):
         time = game_tick_packet.gameInfo.TimeSeconds
 
-        if self.last_time is not None:
-            trace(time - self.last_time)
+
+        # if self.last_time is not None:
+        #     trace(time - self.last_time)
         self.last_time = time
 
         # State transition
@@ -117,8 +119,7 @@ class Agent:
 
     def mimic(self, time, game_tick_packet):
         action_dict = self.history.get_action_dict()
-        keyframe_timestamps = sorted(action_dict.keys())
-        if len(keyframe_timestamps) < 2:
+        if len(action_dict) < 2:
             return [0] * 8  # No action
         replay_duration = self.history.end_time - self.history.start_time
 
@@ -129,23 +130,29 @@ class Agent:
             )
             bakkes.rcon(bakkes_reset_command)
             self.mimic_start_time = time
+            self.on_mimic_reset()
+        return self.decide_on_action(action_dict, time_in_history, game_tick_packet)
+
+    def on_mimic_reset(self):
+        pass
+
+    def decide_on_action(self, action_dict, time_in_history, game_tick_packet):
+        keyframe_timestamps = sorted(action_dict.keys())
         key = max([keyframe_timestamps[0]] + [ t for t in keyframe_timestamps if t <= time_in_history ])
         trace(key)
         player_input = action_dict[key]
-
-        # expected_state = self.history.get_closest_game_tick_packet(time_in_history)
-        # def diff(mask):
-        #     deviation = ctype_utils.struct_rms_deviation(expected_state, game_tick_packet, mask=mask)
-        #     return min(deviation, 1000000)
-        # trace(diff({'gamecars': {0: {'AngularVelocity': all, }}}))
-        # trace(diff({'gamecars': {0: {'Velocity': all, }}}))
-        # trace(diff({'gamecars': {0: {'Location': all, }}}))
-        # trace(packet_diff)
-
         return player_input_to_vector(player_input)
 
 
     def record(self, time, game_tick_packet):
+
+        state = EasyGameState(game_tick_packet, self.index)
+        # trace(state.car_pos)
+        trace(state.car_forward)
+        trace(state.car_right)
+        trace(state.car_up)
+        trace(state.pyr)
+
         time = time - self.record_start_time
 
         output_vector = (

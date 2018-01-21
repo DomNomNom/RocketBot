@@ -1,3 +1,8 @@
+
+# pip install -r requirements.txt
+
 docopt
 prompt_toolkit
 numpy
+watchdog
+psutil
