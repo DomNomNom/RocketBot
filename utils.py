@@ -3,34 +3,13 @@ import math
 import numpy as np
 from functools import reduce
 
-UCONST_Pi = 3.1415926
-URotation180 = float(32768)
-URotationToRadians = UCONST_Pi / URotation180
-tau = 2*UCONST_Pi
+from vector_math import *
 
 
-cross = np.cross
-def mag(vec):
-    ''' magnitude/length of a vector '''
-    return np.linalg.norm(vec)
-def normalize(vec):
-    magnitude = mag(vec)
-    if not magnitude: return vec
-    return vec / magnitude
-def vec2angle(vec):
-    return math.atan2(vec[1], vec[0])
-def rotate90degrees(xy):
-    return np.array([xy[1], -xy[0]])
-def closest180(angle):
-    return ((angle+UCONST_Pi) % (2*UCONST_Pi)) - UCONST_Pi
-def clamp(x, bot, top):
-    return min(top, max(bot, x))
-def clamp01(x):
-    return clamp(x, 0.0, 1.0)
-def clamp11(x):
-    return clamp(x, -1.0, 1.0)
-def lerp(v0, v1, t):  # linear interpolation
-  return (1 - t) * v0 + t * v1;
+UP = np.array([0.0, 0.0, 1.0])
+UP.flags.writeable = False
+STEER_R = +1
+STEER_L = -1
 
 def sanitize_output_vector(output_vector):
     return [
@@ -44,58 +23,33 @@ def sanitize_output_vector(output_vector):
         clamp01(output_vector[7]),  # bHandbrake
     ]
 
-def stuct_vector3_to_numpy(vec):
-    return np.array([vec.X, vec.Y, vec.Z])
-
-def rotation_to_mat(rotator):
-    return to_rotation_matrix(
-        URotationToRadians * rotator.Pitch,
-        URotationToRadians * rotator.Yaw,
-        URotationToRadians * rotator.Roll
+def estimate_turn_radius(car_speed):
+    # https://docs.google.com/spreadsheets/d/1Hhg1TJqVUCcKIRmwvO2KHnRZG1z8K4Qn-UnAf5-Pt64/edit?usp=sharing
+    return (
+        +156
+        +0.1         * car_speed
+        +0.000069    * car_speed**2
+        +0.000000164 * car_speed**3
+        -5.62E-11    * car_speed**4
     )
 
-def to_rotation_matrix(pitch, yaw, roll):
-
-    y=pitch
-    cosy = math.cos(y)
-    siny = math.sin(y)
-    mat_pitch = np.array(
-            [[cosy, 0, -siny],
-             [0, 1, 0],
-             [siny, 0, cosy]])
-
-    z=yaw
-    cosz = math.cos(z)
-    sinz = math.sin(z)
-    mat_yaw = np.array(
-            [[cosz, -sinz, 0],
-             [sinz, cosz, 0],
-             [0, 0, 1]])
-
-    x=roll
-    cosx = math.cos(x)
-    sinx = math.sin(x)
-    mat_roll = np.array(
-            [[1, 0, 0],
-             [0, cosx, sinx],
-             [0, -sinx, cosx]])
-
-    return reduce(np.dot, [mat_yaw, mat_roll, mat_pitch])
-
+class Car(object):
+    def __init__(self, gamecar):
+        self.pos = stuct_vector3_to_numpy(gamecar.Location)
+        self.vel = stuct_vector3_to_numpy(gamecar.Velocity)
+        self.to_global_matrix = rotation_to_mat(gamecar.Rotation)
+        self.forward = self.to_global_matrix.dot(np.array([1.0, 0.0, 0.0]))
+        self.right   = self.to_global_matrix.dot(np.array([0.0, 1.0, 0.0]))
+        self.up      = self.to_global_matrix.dot(np.array(UP))
 
 # A wrapper for the game_tick_packet
 class EasyGameState(object):
     def __init__(self, game_tick_packet, car_index):
-        car = game_tick_packet.gamecars[car_index]
-        self.car_pos = stuct_vector3_to_numpy(car.Location)
-        self.car_vel = stuct_vector3_to_numpy(car.Velocity)
-        self.car_to_global_matrix = rotation_to_mat(car.Rotation)
-        self.car_forward = self.car_to_global_matrix.dot(np.array([1.0, 0.0, 0.0]))
-        self.car_right   = self.car_to_global_matrix.dot(np.array([0.0, 1.0, 0.0]))
-        self.car_up      = self.car_to_global_matrix.dot(np.array([0.0, 0.0, 1.0]))
+        self.car = Car(game_tick_packet.gamecars[car_index])
         ball = game_tick_packet.gameball
         self.ball_pos = stuct_vector3_to_numpy(ball.Location)
         self.ball_vel = stuct_vector3_to_numpy(ball.Velocity)
+        self.time = game_tick_packet.gameInfo.TimeSeconds
 
 def main():
     import sys
