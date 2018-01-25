@@ -30,13 +30,6 @@ def normalize(vec):
     magnitude = mag(vec)
     if not magnitude: return vec
     return vec / magnitude
-def vec2angle(vec):
-    return math.atan2(vec[1], vec[0])
-def rotate90degrees(vec2):
-    # Clockwise
-    return Vec2(vec2[1], -vec2[0])
-def closest180(angle):
-    return ((angle+UCONST_Pi) % (2*UCONST_Pi)) - UCONST_Pi
 def clamp(x, bot, top):
     return min(top, max(bot, x))
 def clamp01(x):
@@ -45,10 +38,58 @@ def clamp11(x):
     return clamp(x, -1.0, 1.0)
 def lerp(v0, v1, t):  # linear interpolation
   return (1 - t) * v0 + t * v1;
+def is_close(v0, v1):
+    return all(np.isclose(v0, v1))
 
 
+###### Angle and rotation stuff ####
 
-
+def vec2angle(vec2):
+    '''
+    >>> vec2angle(Vec2(0, 1))
+    1.5707963267948966
+    '''
+    return math.atan2(vec2[1], vec2[0])
+def clockwise90degrees(vec2):
+    # Clockwise (away from Y=up)
+    return clockwise_matrix(tau/4).dot(vec2)
+def closest180(angle):
+    return ((angle+UCONST_Pi) % (2*UCONST_Pi)) - UCONST_Pi
+def positive_angle(angle):
+    return angle % tau
+def clockwise_matrix(radians):
+    '''
+    >>> clockwise_matrix(tau/4).dot(Vec2(1,0))
+    [0.0, 1.0]
+    '''
+    t = radians
+    return np.array([
+        [ np.cos(t), -np.sin(t)],
+        [ np.sin(t),  np.cos(t)],
+    ])
+def clockwise_angle(a, b):
+    '''
+    >>> clockwise_angle(Vec2(1, 0), Vec2(0, -1))
+    -1.5707963267948966
+    '''
+    # Note: x=right, y=up
+    dot = a.dot(b)      # dot product
+    det = np.linalg.det([a, b])      # determinant
+    return math.atan2(det, dot)  # atan2(y, x) or atan2(sin, cos)
+def clockwise_angle_abc(a, b_center, c):
+    return clockwise_angle(a-b_center, c-b_center)
+# Angle around `b` with direction specified by `clockwise`
+def directional_angle(a,b,c, clockwise):
+    '''
+    >>> directional_angle(Vec2(0,0), Vec2(-1,0), Vec2(-1, 1), True)
+    1.5707963267948966
+    >>> directional_angle(Vec2(0,0), Vec2(-1,0), Vec2(-1, 1), False)
+    4.712388873205104
+    '''
+    angle = clockwise_angle_abc(a, b, c)
+    if not clockwise:
+        angle *= -1
+    return positive_angle(angle)
 
 def stuct_vector3_to_numpy(vec):
     return np.array([vec.X, vec.Y, vec.Z])
