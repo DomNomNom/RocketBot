@@ -13,10 +13,10 @@ def tangent_point_line_circles(circle_center, circle_radius, point, clockwise):
     p_x, p_y = point
     c_r = circle_radius
 
-    dis = (p_x - c_x)**2 + (p_y - c_y)**2 - c_r**2  # point to circle surface distance
+    to_surface_dist = (p_x - c_x)**2 + (p_y - c_y)**2 - c_r**2  # point to circle surface distance
 
-    if dis >= 0:
-        dis = sqrt(dis)
+    if to_surface_dist >= 0:
+        dis = sqrt(to_surface_dist)
 
         sign = -1 if clockwise else 1
         return Vec2(
@@ -24,6 +24,7 @@ def tangent_point_line_circles(circle_center, circle_radius, point, clockwise):
             (c_r**2 * (p_y - c_y) - sign * c_r * (p_x - c_x) * dis) / ((p_x - c_x)**2 + (p_y - c_y)**2) + c_y,
         )
     else:
+        # Point is inside the circle. No solutions.
         return None
 
 def inner_tangent_points(center_0, radius_0, center_1, radius_1, clockwise):
@@ -37,6 +38,29 @@ def inner_tangent_points(center_0, radius_0, center_1, radius_1, clockwise):
         center_1 - normalized * radius_1,  # point on circle_1
     ]
 
+def outer_tangent_points(center_0, radius_0, center_1, radius_1, clockwise):
+    if radius_0 == radius_1:  # Special case: Outer tangents never meet.
+        if equal(center_0, center_1):
+            right = Vec2(1.0, 0.0)  # Technically, we'd have infinite solutions. Let's pick one.
+        else: # common case
+            right = rotate90degrees(normalize(center_1 - center_0))
+
+        sign = -1 if clockwise else 1
+        return [
+           center_0 + (sign * radius_0) * right,
+           center_1 + (sign * radius_1) * right,
+        ]
+
+    if radius_0 < radius_1:  # This changes the side on which the tangents meet
+        clockwise = not clockwise
+    intersection = (radius_1 * center_0 - radius_0 * center_1) / (radius_1 - radius_0)
+    out = [
+        tangent_point_line_circles(center_0, radius_0, intersection, clockwise),  # point on circle_0
+        tangent_point_line_circles(center_1, radius_1, intersection, clockwise),  # point on circle_1
+    ]
+    if any(vec is None  for vec in out):
+        return None
+    return out
 
 
 def main():
@@ -53,12 +77,14 @@ def main():
     win.resize(800,800)
 
     pg.setConfigOptions(antialias=True)
-    plot = win.addPlot(title="Tangents!")
-    plot.showGrid(x=True,y=True)
-    plot.setAspectLocked()
+    view_area = win.addPlot(title="Tangents!")
+    view_area.showGrid(x=True,y=True)
+    view_area.setAspectLocked()
+    view_area.setXRange(-3, 10)
+    view_area.setYRange(-3, 10)
 
     turn_circle_scatter = pg.ScatterPlotItem(pxMode=False)
-    plot.addItem(turn_circle_scatter)
+    view_area.addItem(turn_circle_scatter)
 
 
 
@@ -82,10 +108,8 @@ def main():
             pg.GraphItem.setData(self, **self.data)
             if 'pos' not in self.data:
                 return
-            dragged_positions = self.data['pos']
-            circle_0 = dragged_positions[0]
-            circle_1 = dragged_positions[1]
-            update(circle_0, radius_0, circle_1, radius_1)
+            control_points = self.data['pos']
+            update(control_points)
 
 
         def mouseDragEvent(self, ev):
@@ -103,8 +127,8 @@ def main():
                     ev.ignore()
                     return
                 self.dragPoint = pts[0]
-                ind = pts[0].data()[0]
-                self.dragOffset = self.data['pos'][ind] - pos
+                index = pts[0].data()[0]
+                self.dragOffset = self.data['pos'][index] - pos
             elif ev.isFinish():
                 self.dragPoint = None
                 return
@@ -113,50 +137,90 @@ def main():
                     ev.ignore()
                     return
 
-            ind = self.dragPoint.data()[0]
-            self.data['pos'][ind] = ev.pos() + self.dragOffset
+            index = self.dragPoint.data()[0]
+            if index %2 == 0:  # car/targer
+                vel = self.data['pos'][index+1] - self.data['pos'][index]
+                self.data['pos'][index] = ev.pos() + self.dragOffset
+                self.data['pos'][index+1] = self.data['pos'][index] + vel
+            else:
+                self.data['pos'][index] = ev.pos() + self.dragOffset
             self.updateGraph()
             ev.accept()
 
 
-    curve = pg.PlotDataItem(symbol='o')
-    plot.addItem(curve)
+    vel_curve_0 = pg.PlotDataItem()
+    vel_curve_1 = pg.PlotDataItem()
+    tangent_curve = pg.PlotDataItem(symbol='o')
+    view_area.addItem(tangent_curve)
+    view_area.addItem(vel_curve_0)
+    view_area.addItem(vel_curve_1)
+
+    def set_data_points(view_area_data_item, points):
+        view_area_data_item.setData(
+            [p[0] for p in points],
+            [p[1] for p in points],
+        )
+
+    def update(control_points):
+        center_0, vel_0, center_1, vel_1 = control_points
+        set_data_points(vel_curve_0, [center_0, vel_0])
+        set_data_points(vel_curve_1, [center_1, vel_1])
+        vel_0 = vel_0 - center_0
+        vel_1 = vel_1 - center_1
+
+        right_0 = normalize(rotate90degrees(vel_0))
+        right_1 = normalize(rotate90degrees(vel_1))
 
 
+        radius_0 = 0.5 * mag(vel_0)
+        radius_1 = 0.5 * mag(vel_1)
 
-    def update(center_0, radius_0, center_1, radius_1):
-        circles = [ (center_0, radius_0), (center_1, radius_1) ]
-        tangent_point = tangent_point_line_circles(center_0, radius_0, center_1, clockwise=True)
-        tangents = inner_tangent_points(center_0, radius_0, center_1, radius_1, clockwise=False)
+        turn_point_r_0 = center_0 + radius_0 * right_0
+        turn_point_l_0 = center_0 - radius_0 * right_0
+        turn_point_r_1 = center_1 + radius_1 * right_1
+        turn_point_l_1 = center_1 - radius_1 * right_1
+
+        circles = [
+            (turn_point_r_0, radius_0),
+            (turn_point_l_0, radius_0),
+            (turn_point_r_1, radius_1),
+            (turn_point_l_1, radius_1),
+        ]
+        tangent_point = tangent_point_line_circles(turn_point_r_0, radius_0, turn_point_r_1, clockwise=True)
+        tangents = inner_tangent_points(turn_point_r_0, radius_0, turn_point_l_1, radius_1, clockwise=True)
+        tangents = outer_tangent_points(turn_point_r_0, radius_0, turn_point_r_1, radius_1, clockwise=True)
+
         if tangents is None:
             return
         points = [
-            center_0,
+            turn_point_r_0,
             # tangent_point,
             tangents[0],
             tangents[1],
-            center_1,
+            turn_point_r_1,
         ]
         spots = []
         for center, radius in circles:
             spots.append({'pos': center, 'size': 2*radius, 'pen': {'color': 'w', 'width': 1}, })
         turn_circle_scatter.setData(spots)
 
-        curve.setData(
-            [p[0] for p in points],
-            [p[1] for p in points],
-        )
+        set_data_points(tangent_curve, points)
 
-    update(Vec2(1,2), 3, Vec2(7,6.5), 1)
     center_0 = Vec2(1,2)
-    radius_0 = 3
-    center_1 = Vec2(7,6.5)
-    radius_1 = 1
+    center_1 = Vec2(7, 6.5)
+    control_points = [
+        center_0,
+        center_0 + 2 * Vec2(0,1),
+
+        center_1,
+        center_1 + 2 * Vec2(0,1)
+    ]
+    update(control_points)
 
 
     dragables = DraggableNodes()
-    dragables.setData(pos=[center_0, center_1], symbol='o', size=30, symbolBrush=pg.mkBrush('#444444'))
-    plot.addItem(dragables)
+    dragables.setData(pos=control_points, symbol='o', size=30, symbolBrush=pg.mkBrush('#444444'))
+    view_area.addItem(dragables)
 
     import sys
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):

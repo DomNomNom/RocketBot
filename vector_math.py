@@ -20,6 +20,7 @@ UP = np.array([0.0, 0.0, 1.0])
 UP.flags.writeable = False
 cross = np.cross
 sqrt = np.sqrt
+equal = np.array_equal
 def mag(vec):
     ''' magnitude/length of a vector '''
     return np.linalg.norm(vec)
