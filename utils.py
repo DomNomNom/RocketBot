@@ -30,6 +30,7 @@ def estimate_turn_radius(car_speed):
     # TODO: reverse speed?
     car_speed = clamp(car_speed, 0.0, MAX_CAR_TURN_SPEED)
     return (
+        -10
         +156
         +0.1         * car_speed
         +0.000069    * car_speed**2
@@ -41,18 +42,21 @@ class Car(object):
     def __init__(self, gamecar):
         self.pos = stuct_vector3_to_numpy(gamecar.Location)
         self.vel = stuct_vector3_to_numpy(gamecar.Velocity)
+        self.speed = mag(self.vel)
         self.to_global_matrix = rotation_to_mat(gamecar.Rotation)
         self.forward = self.to_global_matrix.dot(np.array([1.0, 0.0, 0.0]))
         self.right   = self.to_global_matrix.dot(np.array([0.0, 1.0, 0.0]))
         self.up      = self.to_global_matrix.dot(np.array(UP))
+class Ball(object):
+    def __init__(self, ball):
+        self.pos = stuct_vector3_to_numpy(ball.Location)
+        self.vel = stuct_vector3_to_numpy(ball.Velocity)
 
 # A wrapper for the game_tick_packet
 class EasyGameState(object):
     def __init__(self, game_tick_packet, car_index):
         self.car = Car(game_tick_packet.gamecars[car_index])
-        ball = game_tick_packet.gameball
-        self.ball_pos = stuct_vector3_to_numpy(ball.Location)
-        self.ball_vel = stuct_vector3_to_numpy(ball.Velocity)
+        self.ball = Ball(game_tick_packet.gameball)
         self.time = game_tick_packet.gameInfo.TimeSeconds
 
 def main():

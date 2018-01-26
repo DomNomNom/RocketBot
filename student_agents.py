@@ -4,14 +4,10 @@ if __name__ == '__main__':
 
 import numpy as np
 
-# from quicktracer import trace
-
-from importlib.machinery import SourceFileLoader
-quicktracer = SourceFileLoader("module.name", r"C:\Users\dom\Documents\GitHub\quicktracer\quicktracer\__init__.py").load_module()
-trace = quicktracer.trace
+from quicktracer import trace
 
 from tangents import get_tangent_paths, get_length_of_tangent_path
-
+from tangents_visualizer import TangentVisualizer
 
 TURN_RADIUS_WHILE_BOOSTING = 1100
 TURN_RADIUS_WHILE_NON_BOOSTING = 550
@@ -59,8 +55,6 @@ def get_steer_towards(s, target_pos):
 
 def drive_to_pos(s, target_pos):
     steer = get_steer_towards(s, target_pos)
-    trace(steer)
-    # steer = clamp11(steer)
     out_vec = [
         1,  # fThrottle
         steer,  # fSteer
@@ -75,27 +69,45 @@ def drive_to_pos(s, target_pos):
 
 def steer_and_speed(s, steer, target_speed):
     # TODO: speed adjustment
+    if s.car.speed < target_speed:
+        return [
+            1,  # fThrottle
+            steer,  # fSteer
+            0,  # fPitch
+            0,  # fYaw
+            0,  # fRoll
+            0,  # bJump
+            1,  # bBoost
+            0,  # bHandbrake
+        ]
     return [
-        1,  # fThrottle
+        0,  # fThrottle
         steer,  # fSteer
         0,  # fPitch
         0,  # fYaw
         0,  # fRoll
         0,  # bJump
-        1,  # bBoost
+        0,  # bBoost
         0,  # bHandbrake
     ]
 
+
 def execute_tangent_path(s, path, target_speed):
     pos = xy_only(s.car.pos)
-    if is_close(pos, path.tangent_1):
+    state = 0
+    lookahead_time = 0.15
+    lookahead_dist = s.car.speed * lookahead_time
+    if dist(pos, path.tangent_1) < lookahead_dist:
+        state = 1
         steer = STEER_R if path.clockwise_1 else STEER_L
-    elif is_close(pos, path.tangent_0):
+    elif dist(pos, path.tangent_0) < lookahead_dist:
+        state = 2
         steer = get_steer_towards(s, z0(path.tangent_1))
     else:
+        state = 3
         steer = STEER_R if path.clockwise_0 else STEER_L
-        target_speed = mag(s.car.vel)
-        target_speed = clamp(target_speed, 500, 999999)  # Kinda arbitrary values
+        # target_speed = mag(s.car.vel)
+        # target_speed = clamp(target_speed, 500, 999999)  # Kinda arbitrary values
     return steer_and_speed(s, steer, target_speed)  # TODO: maybe go faster in the mean time?
 
 
@@ -144,9 +156,13 @@ def drive_to_pos_vel(s, target_pos, target_vel):
             0,  # bHandbrake
         ]
     paths.sort(key=get_length_of_tangent_path)
+    path = paths[0]
+    # trace(2)
+    trace(path, custom_display=TangentVisualizer)
 
     target_speed = mag(target_vel)  # TODO: Can we go that fast?
-    return stop_if_close(s, Vec3(0,0,0)) or execute_tangent_path(s, paths[0], target_speed)
+    # stop_if_close(s, Vec3(0,0,0))
+    return execute_tangent_path(s, path, target_speed)
 
 
     target_right = cross(target_facing, UP)
@@ -162,8 +178,11 @@ class DriveToPosAndVel(StudentAgent):
         self.target_pos = target_pos
         self.target_facing_dir = target_facing_dir
     def get_output_vector(self, s):
-        return drive_to_pos_vel(s, np.array([-1000,0,10]), np.array([1000, 0, 0]))
-        return drive_to_pos(s, np.array([-3600,0,0]))
+        target_speed = 1*2330 # mag(s.car.vel)
+        target_vel = target_speed * Vec3(0,-1,0)
+        target_pos = Vec3(0,5,0)# s.ball.pos
+        return drive_to_pos_vel(s, target_pos, target_vel)
+        return drive_to_pos(s, Vec3(-3600,0,0))
         return [-1] + [0]*7
 
 
