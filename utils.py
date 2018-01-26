@@ -11,6 +11,8 @@ UP.flags.writeable = False
 STEER_R = +1
 STEER_L = -1
 
+MAX_CAR_TURN_SPEED = 2330.0
+
 def sanitize_output_vector(output_vector):
     return [
         clamp11(output_vector[0]),  # fThrottle
@@ -25,6 +27,8 @@ def sanitize_output_vector(output_vector):
 
 def estimate_turn_radius(car_speed):
     # https://docs.google.com/spreadsheets/d/1Hhg1TJqVUCcKIRmwvO2KHnRZG1z8K4Qn-UnAf5-Pt64/edit?usp=sharing
+    # TODO: reverse speed?
+    car_speed = clamp(car_speed, 0.0, MAX_CAR_TURN_SPEED)
     return (
         +156
         +0.1         * car_speed

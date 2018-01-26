@@ -24,6 +24,7 @@ def tangent_point_line_circles(circle_center, circle_radius, point, clockwise):
 
         sign = 1 if clockwise else -1
         return Vec2(
+            # TODO: Maybe there's amore nice vector expression.
             (c_r**2 * (p_x - c_x) + sign * c_r * (p_y - c_y) * dis) / ((p_x - c_x)**2 + (p_y - c_y)**2) + c_x,
             (c_r**2 * (p_y - c_y) - sign * c_r * (p_x - c_x) * dis) / ((p_x - c_x)**2 + (p_y - c_y)**2) + c_y,
         )
@@ -69,15 +70,15 @@ def outer_tangent_points(center_0, radius_0, center_1, radius_1, clockwise):
 TangetPath = namedtuple('TangentPath', 'pos_0 pos_1 clockwise_0 clockwise_1 turn_center_0 turn_center_1 tangent_0 tangent_1')
 
 def get_tangent_paths(pos_0, turn_radius_0, right_0, pos_1, turn_radius_1, right_1):
-    # input:
+    # arguments:
     #   *_0 is the specification for the start
     #   *_1 is the specification for the end
     #   pos - Position
     #   turn_radius
     #   right - The normalized vector facing to the right of the velocity.
     #           Note: x=right, y=up. Therefore right([1, 0]) == [-1, 0]
-    # returns list of (length, path) tuples
-    # where path=(pos_0, turn_center_0, tangent_0, tangent_1, turn_center_1, pos_1)
+    # returns:
+    #   list of TangetPaths, not sorted.
 
     turn_center_r_0 = pos_0 + turn_radius_0 * right_0
     turn_center_l_0 = pos_0 - turn_radius_0 * right_0
@@ -122,6 +123,9 @@ def get_length_of_tangent_path(path):
     arc_length_1 = radius_1 * directional_angle(path.tangent_1, path.turn_center_1, path.pos_1, path.clockwise_1)
     return arc_length_0 + dist(path.tangent_0, path.tangent_1) + arc_length_1
 
+# class TangentVisualizer(object):
+#     def __init__(self, view_area):
+#         self.view_area = view_area
 
 def main():
 
@@ -275,6 +279,9 @@ def main():
             return
         tangent_paths.sort(key=get_length_of_tangent_path)
         path = tangent_paths[0]
+        visualize_tangent_path(path)
+
+    def visualize_tangent_path(path):
         points = [
             path.pos_0,
             path.turn_center_0,
@@ -285,7 +292,8 @@ def main():
         ]
         set_wedge_data(wedge_curve_0, path.pos_0, path.turn_center_0, path.tangent_0, path.clockwise_0)
         set_wedge_data(wedge_curve_1, path.tangent_1, path.turn_center_1, path.pos_1, path.clockwise_1)
-
+        radius_0 = dist(path.turn_center_0, path.tangent_0)
+        radius_1 = dist(path.turn_center_1, path.tangent_1)
         circles = [
             (path.turn_center_0, radius_0),
             (path.turn_center_1, radius_1),

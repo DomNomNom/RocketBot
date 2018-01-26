@@ -10,7 +10,7 @@ from importlib.machinery import SourceFileLoader
 quicktracer = SourceFileLoader("module.name", r"C:\Users\dom\Documents\GitHub\quicktracer\quicktracer\__init__.py").load_module()
 trace = quicktracer.trace
 
-
+from tangents import get_tangent_paths, get_length_of_tangent_path
 
 
 TURN_RADIUS_WHILE_BOOSTING = 1100
@@ -26,7 +26,6 @@ def stop_if_close(s, target_pos, r=1000):
     towards_target = target_pos - s.car.pos
     forward_speed = s.car.forward.dot(s.car.vel)
     tangent_forward_amount = towards_target.dot(s.car.forward)
-    trace(tangent_forward_amount)
 
     fThrottle = 0
     if forward_speed > 300:
@@ -47,8 +46,7 @@ def stop_if_close(s, target_pos, r=1000):
         0,  # bHandbrake
     ]
 
-
-def turn_to_pos(s, target_pos):
+def get_steer_towards(s, target_pos):
     towards_target = target_pos - s.car.pos
     target_on_car_plane = np.array([
         s.car.forward.dot(towards_target),
@@ -56,7 +54,11 @@ def turn_to_pos(s, target_pos):
     ])
     angle = vec2angle(target_on_car_plane)
     steer = angle*2.0
-    trace(towards_target.dot(s.car.up))
+    return steer
+
+
+def drive_to_pos(s, target_pos):
+    steer = get_steer_towards(s, target_pos)
     trace(steer)
     # steer = clamp11(steer)
     out_vec = [
@@ -71,36 +73,89 @@ def turn_to_pos(s, target_pos):
     ]
     return  out_vec
 
+def steer_and_speed(s, steer, target_speed):
+    # TODO: speed adjustment
+    return [
+        1,  # fThrottle
+        steer,  # fSteer
+        0,  # fPitch
+        0,  # fYaw
+        0,  # fRoll
+        0,  # bJump
+        1,  # bBoost
+        0,  # bHandbrake
+    ]
+
+def execute_tangent_path(s, path, target_speed):
+    pos = xy_only(s.car.pos)
+    if is_close(pos, path.tangent_1):
+        steer = STEER_R if path.clockwise_1 else STEER_L
+    elif is_close(pos, path.tangent_0):
+        steer = get_steer_towards(s, z0(path.tangent_1))
+    else:
+        steer = STEER_R if path.clockwise_0 else STEER_L
+        target_speed = mag(s.car.vel)
+        target_speed = clamp(target_speed, 500, 999999)  # Kinda arbitrary values
+    return steer_and_speed(s, steer, target_speed)  # TODO: maybe go faster in the mean time?
+
+
+    # tangent_connection = path.tangent_1 - path.tangent_0
+    # car_on_tangent = s.car.pos - path.tangent_0
+    # tangent_forward_amount =
+
 def drive_to_pos_vel(s, target_pos, target_vel):
     boost = 1 # TODO
-    car_to_target = target_pos - s.car.pos
-    target_facing = normalize(target_vel)
-    if car_to_target.dot(s.car.forward) <= 0:
-        # trace(car_to_target.dot(s.car.forward))
-        trace(target_vel.dot(s.car.right))
-        steer = STEER_R if target_vel.dot(s.car.right) > 0 else STEER_L
-        # steer = STEER_R
-        # target is behind us. turn towards the opposite side of target_vel
-        out_vec = [
+    # car_to_target = target_pos - s.car.pos
+    # target_facing = normalize(target_vel)
+    # if car_to_target.dot(s.car.forward) <= 0:
+    #     # trace(car_to_target.dot(s.car.forward))
+    #     trace(target_vel.dot(s.car.right))
+    #     steer = STEER_R if target_vel.dot(s.car.right) > 0 else STEER_L
+    #     # steer = STEER_R
+    #     # target is behind us. turn towards the opposite side of target_vel
+    #     out_vec = [
+    #         1,  # fThrottle
+    #         steer,  # fSteer
+    #         0,  # fPitch
+    #         0,  # fYaw
+    #         0,  # fRoll
+    #         0,  # bJump
+    #         boost,  # bBoost
+    #         0,  # bHandbrake
+    #     ]
+    #     return out_vec
+    turn_radius_0 = estimate_turn_radius(mag(s.car.vel))
+    turn_radius_1 = estimate_turn_radius(mag(target_vel))
+    right_0 = normalize(clockwise90degrees(xy_only(s.car.vel)))
+    right_1 = normalize(clockwise90degrees(xy_only(target_vel)))
+    pos_0 = xy_only(s.car.pos)
+    pos_1 = xy_only(target_pos)
+    paths = get_tangent_paths(pos_0, turn_radius_0, right_0, pos_1, turn_radius_1, right_1)
+    if not len(paths):
+        print ('omg no tangent path! wtf')
+        return [
             1,  # fThrottle
-            steer,  # fSteer
+            0,  # fSteer
             0,  # fPitch
             0,  # fYaw
             0,  # fRoll
             0,  # bJump
-            boost,  # bBoost
+            0,  # bBoost
             0,  # bHandbrake
         ]
-        return out_vec
+    paths.sort(key=get_length_of_tangent_path)
+
+    target_speed = mag(target_vel)  # TODO: Can we go that fast?
+    return stop_if_close(s, Vec3(0,0,0)) or execute_tangent_path(s, paths[0], target_speed)
+
 
     target_right = cross(target_facing, UP)
-    approach_speed = mag(target_vel)  # TODO: Can we go that fast?
     turn_radius = estimate_turn_radius(approach_speed)
     turn_center_right = target_pos + target_right * turn_radius
     turn_center_left = target_pos + target_right * turn_radius
     # Try to face in target_vel when there
     return [0]*8
-    return stop_if_close(s, target_pos) or turn_to_pos(s, target_pos)
+    return stop_if_close(s, target_pos) or drive_to_pos(s, target_pos)
 
 class DriveToPosAndVel(StudentAgent):
     def __init__(self, target_pos, target_facing_dir):
@@ -108,29 +163,7 @@ class DriveToPosAndVel(StudentAgent):
         self.target_facing_dir = target_facing_dir
     def get_output_vector(self, s):
         return drive_to_pos_vel(s, np.array([-1000,0,10]), np.array([1000, 0, 0]))
-        return turn_to_pos(s, np.array([-3600,0,0]))
+        return drive_to_pos(s, np.array([-3600,0,0]))
         return [-1] + [0]*7
 
 
-
-
-def tangentPointLineCircles(c, p, side):
-    #************************************************
-    # Input - c circle object
-    #         p point object of focus tangent line
-    #         side which side
-    # Return  tangent point on the circle 0 or 1
-    # http://www.ambrsoft.com/TrigoCalc/Circles2/Circles2Tangent_.htm
-    #************************************************
-    pTangent = new point(0, 0)
-    dis = (p.x - c.a)**2 + (p.y - c.b)**2 - c.r**2  # point to circle surface distance
-
-    if dis >= 0:
-        dis = Math.sqrt(dis)
-
-        sign = 1 if side == 0 else -1
-        pTangent.x = (c.r**2 * (p.x - c.a) + sign * c.r * (p.y - c.b) * dis) / ((p.x - c.a)**2 + (p.y - c.b)**2) + c.a
-        pTangent.y = (c.r**2 * (p.y - c.b) - sign * c.r * (p.x - c.a) * dis) / ((p.x - c.a)**2 + (p.y - c.b)**2) + c.b
-        return pTangent
-    else
-        return None

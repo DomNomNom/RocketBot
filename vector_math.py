@@ -40,8 +40,10 @@ def lerp(v0, v1, t):  # linear interpolation
   return (1 - t) * v0 + t * v1;
 def is_close(v0, v1):
     return all(np.isclose(v0, v1))
-
-
+def xy_only(vec3):
+    return vec3[:2]
+def z0(vec2):
+    return Vec3(vec2[0], vec2[1], 0.0)
 ###### Angle and rotation stuff ####
 
 def vec2angle(vec2):
