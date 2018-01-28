@@ -6,9 +6,9 @@ from functools import reduce
 # mainly to name things how I like them
 
 def Vec2(x, y):
-    return np.array([x,y])
+    return np.array([x,y], dtype=float)
 def Vec3(x, y, z):
-    return np.array([x,y,z])
+    return np.array([x,y,z], dtype=float)
 
 UCONST_Pi = 3.1415926
 URotation180 = float(32768)

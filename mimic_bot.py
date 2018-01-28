@@ -53,6 +53,7 @@ class Agent:
         self.clear_recording(0.0)
         self.first_time = True
         self.last_time = None
+        self.should_reset_mimic = True
         self.history = historian.History()
         self.history.load(descriptor_file_path=None)  # latest
         self.mimic_start_time = -1
@@ -123,7 +124,8 @@ class Agent:
         replay_duration = self.history.end_time - self.history.start_time
 
         time_in_history = time - self.mimic_start_time + self.history.start_time
-        if time - self.mimic_start_time > replay_duration:
+        if time - self.mimic_start_time > replay_duration or self.should_reset_mimic:
+            self.should_reset_mimic = False
             bakkes_reset_command = bakkes.convert_tick_packet_to_command(
                 self.history.get_closest_game_tick_packet(self.history.start_time)
             )

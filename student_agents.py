@@ -95,7 +95,7 @@ def steer_and_speed(s, steer, target_speed):
 def execute_tangent_path(s, path, target_speed):
     pos = xy_only(s.car.pos)
     state = 0
-    lookahead_time = 0.15
+    lookahead_time = 0.15  # seconds
     lookahead_dist = s.car.speed * lookahead_time
     if dist(pos, path.tangent_1) < lookahead_dist:
         state = 1
@@ -174,15 +174,10 @@ def drive_to_pos_vel(s, target_pos, target_vel):
     return stop_if_close(s, target_pos) or drive_to_pos(s, target_pos)
 
 class DriveToPosAndVel(StudentAgent):
-    def __init__(self, target_pos, target_facing_dir):
+    def __init__(self, target_pos, target_vel):
         self.target_pos = target_pos
-        self.target_facing_dir = target_facing_dir
+        self.target_vel = target_vel
     def get_output_vector(self, s):
-        target_speed = 1*2330 # mag(s.car.vel)
-        target_vel = target_speed * Vec3(0,-1,0)
-        target_pos = Vec3(0,5,0)# s.ball.pos
-        return drive_to_pos_vel(s, target_pos, target_vel)
-        return drive_to_pos(s, Vec3(-3600,0,0))
-        return [-1] + [0]*7
+        return drive_to_pos_vel(s, self.target_pos, self.target_vel)
 
 

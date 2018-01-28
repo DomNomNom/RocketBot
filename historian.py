@@ -126,7 +126,7 @@ class History(object):
             self.end_time = descriptor['end_time']
             items_file_name = descriptor['items_file_name']
 
-        with open(os.path.join(base_path, items_file_name), 'rb') as f:
+        with open(os.path.realpath(os.path.join(base_path, items_file_name)), 'rb') as f:
             self.items = []
             while True:
                 item = HistoryItem()
