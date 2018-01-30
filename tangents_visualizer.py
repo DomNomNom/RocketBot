@@ -1,4 +1,6 @@
 import pyqtgraph as pg
+from pyqtgraph.Qt import QtGui
+
 import quicktracer
 from vector_math import *
 from tangents import TangetPath, get_tangent_paths, get_length_of_tangent_path
@@ -6,14 +8,16 @@ import numpy as np
 
 FIELD_BOUNDS = 8000
 
+
 class TangentVisualizer(quicktracer.Display):
     def __init__(self):
         super().__init__()
         self.turn_circle_scatter = pg.ScatterPlotItem(pxMode=False)
+        self.speed_arrows = pg.ScatterPlotItem(pxMode=False)
         self.wedge_curve_0 = pg.PlotDataItem()
         self.wedge_curve_1 = pg.PlotDataItem()
         self.tangent_curve = pg.PlotDataItem(symbol='o')
-        self.path = None
+        self.path = None  #TangentPath
 
     @classmethod
     def accepts_value(cls, value):
@@ -34,6 +38,7 @@ class TangentVisualizer(quicktracer.Display):
         view_area.addItem(self.wedge_curve_0)
         view_area.addItem(self.wedge_curve_1)
         view_area.addItem(self.tangent_curve)
+        view_area.addItem(self.speed_arrows)
 
     def render(self):
         path = self.path
@@ -59,6 +64,50 @@ class TangentVisualizer(quicktracer.Display):
         for center, radius in circles:
             spots.append({'pos': center, 'size': 2*radius, 'pen': {'color': 'w', 'width': 1}, 'brush': '#3333FF20',})
         self.turn_circle_scatter.setData(spots)
+
+        from_pos_0 = clockwise90degrees(path.pos_0 - path.turn_center_0)
+        if not path.clockwise_0:
+            from_pos_0 = -from_pos_0
+        angle_0 = tau/4 + vec2angle(from_pos_0)
+
+        from_pos_1 = clockwise90degrees(path.pos_1 - path.turn_center_1)
+        if not path.clockwise_1:
+            from_pos_1 = -from_pos_1
+        angle_1 = tau/4 + vec2angle(from_pos_1)
+
+        # arrow_path = pg.functions.makeArrowPath(headLen=0.5, tailLen=0.25, tailWidth=0.1)
+        # arrow_path.rotate(angle)
+        rot_0 = clockwise_matrix(angle_0)
+        arrow_path_0 = QtGui.QPainterPath()
+        arrow_path_0.moveTo(*rot_0.dot(-0.5*Vec2( 0.0,  0.0)))
+        arrow_path_0.lineTo(*rot_0.dot(-0.5*Vec2(-0.2, -1.0)))
+        arrow_path_0.lineTo(*rot_0.dot(-0.5*Vec2( 0.2, -1.0)))
+        arrow_path_0.lineTo(*rot_0.dot(-0.5*Vec2( 0.0,  0.0)))
+
+        rot_1 = clockwise_matrix(angle_1)
+        arrow_path_1 = QtGui.QPainterPath()
+        arrow_path_1.moveTo(*rot_1.dot(-0.5*Vec2( 0.0,  1.0)))
+        arrow_path_1.lineTo(*rot_1.dot(-0.5*Vec2(-0.2,  0.0)))
+        arrow_path_1.lineTo(*rot_1.dot(-0.5*Vec2( 0.2,  0.0)))
+        arrow_path_1.lineTo(*rot_1.dot(-0.5*Vec2( 0.0,  1.0)))
+
+        speed_arrow_data = [
+            {
+                'pos': path.pos_0,
+                'size': 3*mag(from_pos_0),
+                'brush': '#4444FF70',
+                'symbol': arrow_path_0,
+            },
+            {
+                'pos': path.pos_1,
+                'size': 3*mag(from_pos_1),
+                'brush': '#4444FF70',
+                'symbol': arrow_path_1,
+            },
+        ]
+        self.speed_arrows.setData(speed_arrow_data)
+        # self.speed_arrows.rotate(angle)
+
 
         set_data_points(self.tangent_curve, points)
 
@@ -88,6 +137,8 @@ def set_wedge_data(wedge_curve, outer_0, center, outer_1, clockwise):
         points.append(center)
     set_data_points(wedge_curve, points)
     wedge_curve.setPen(pg.mkPen(color='#FFFFFF20'))
+
+
 
 
 def main():
@@ -200,7 +251,7 @@ def main():
     visualizer.render_with_init(win)
 
     center_0 = Vec2(1, 2)
-    center_1 = Vec2(7, 6.5)
+    center_1 = Vec2(7, 5.5)
     control_points = [
         center_0,
         center_0 + 1.5 * Vec2(0,1),
@@ -209,7 +260,7 @@ def main():
     ]
     control_points = [1000 * x for x in control_points]
     draggables = DraggableNodes()
-    draggables.setData(pos=control_points, symbol='o', size=30, symbolBrush=pg.mkBrush('#444444'))
+    draggables.setData(pos=control_points, symbol='o', size=30, symbolBrush=pg.mkBrush('#FFFFFF40'))
 
 
     view_area = visualizer.view_area

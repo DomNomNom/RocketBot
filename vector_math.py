@@ -13,7 +13,9 @@ def Vec3(x, y, z):
 UCONST_Pi = 3.1415926
 URotation180 = float(32768)
 URotationToRadians = UCONST_Pi / URotation180
-tau = 2*UCONST_Pi
+tau = 2*np.pi
+DEGREES_TO_RADIANS = tau / 360.0
+RADIANS_TO_DEGREES = 360.0 / tau
 
 
 UP = np.array([0.0, 0.0, 1.0])
@@ -21,6 +23,7 @@ UP.flags.writeable = False
 cross = np.cross
 sqrt = np.sqrt
 equal = np.array_equal
+dot = np.dot
 def mag(vec):
     ''' magnitude/length of a vector '''
     return np.linalg.norm(vec)
@@ -92,9 +95,11 @@ def directional_angle(a,b,c, clockwise):
     if not clockwise:
         angle *= -1
     return positive_angle(angle)
+def reflect(vec, normal):
+    return vec - 2*dot(vec, normal) * normal
 
-def stuct_vector3_to_numpy(vec):
-    return np.array([vec.X, vec.Y, vec.Z])
+def struct_vector3_to_numpy(vec):
+    return Vec3(vec.X, vec.Y, vec.Z)
 
 def rotation_to_mat(rotator):
     return to_rotation_matrix(
