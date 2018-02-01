@@ -7,23 +7,28 @@ from quicktracer import trace
 
 from vector_math import *
 import mimic_bot
-import student_agents
 import scorer
+import student_agents
+import marvin_atbab
 
-NUM_FRAMES_TO_WAIT_FOR_BAKKES = 5
+NUM_FRAMES_TO_WAIT_FOR_BAKKES_RESET = 5
 
 class Agent(mimic_bot.Agent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.frames_until_scoring = NUM_FRAMES_TO_WAIT_FOR_BAKKES
+        self.frames_until_scoring = NUM_FRAMES_TO_WAIT_FOR_BAKKES_RESET
 
     def on_mimic_reset(self):
-        self.frames_until_scoring = NUM_FRAMES_TO_WAIT_FOR_BAKKES
+        self.frames_until_scoring = NUM_FRAMES_TO_WAIT_FOR_BAKKES_RESET
+        # target_pos = Vec3(0,0,0)
         target_pos = Vec3(0,0,0)
-        target_vel = Vec3(0,1,0) * MAX_CAR_SPEED
+        target_vel = normalize(Vec3(1,2,0)) * MAX_CAR_SPEED
         target_pos -= target_vel * 0.05
-        self.student = student_agents.DriveToPosAndVel(target_pos, target_vel)
         self.scorer = scorer.PosVelScorer(target_pos, target_vel)
+        # self.student = student_agents.DriveToPosAndVel(target_pos, target_vel)
+        # self.student = student_agents.TheoreticalPhysicist()
+        self.student = student_agents.InterceptBallWithVel(target_vel)
+        # self.student = marvin_atbab.Agent(self.name, self.team, self.index)
 
     # Override
     def decide_on_action(self, action_dict, time_in_history, game_tick_packet):
@@ -32,6 +37,9 @@ class Agent(mimic_bot.Agent):
             return [0]*8
         s = EasyGameState(game_tick_packet, self.index)
         self.scorer.update(s)
-        trace(self.scorer.get_score())
-        return sanitize_output_vector(self.student.get_output_vector(s))
+        # trace(self.scorer.get_score())
+        # return [0]*8
+        output_vector = self.student.get_output_vector(s)
+        # output_vector = self.student.get_output_vector(game_tick_packet)
+        return sanitize_output_vector(output_vector)
 

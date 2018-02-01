@@ -129,7 +129,14 @@ class Agent:
             bakkes_reset_command = bakkes.convert_tick_packet_to_command(
                 self.history.get_closest_game_tick_packet(self.history.start_time)
             )
-            bakkes.rcon(bakkes_reset_command)
+            # bakkes.rcon(bakkes_reset_command)
+            bakkes.rcon(';'.join([
+                bakkes_reset_command,
+                'ball location 0 0 0',
+                'ball velocity -500 500 0',
+                'ball angularvelocity 0 0 0',
+            ]))  ## HAAX
+            print('ball reset')
             self.mimic_start_time = time
             self.on_mimic_reset()
         return self.decide_on_action(action_dict, time_in_history, game_tick_packet)
@@ -148,6 +155,7 @@ class Agent:
     def record(self, time, game_tick_packet):
 
         state = EasyGameState(game_tick_packet, self.index)
+        trace(state.car.pos)
 
         time = time - self.record_start_time
 

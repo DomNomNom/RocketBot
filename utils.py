@@ -40,17 +40,28 @@ def estimate_turn_radius(car_speed):
 
 class Car(object):
     def __init__(self, gamecar):
-        self.pos = stuct_vector3_to_numpy(gamecar.Location)
-        self.vel = stuct_vector3_to_numpy(gamecar.Velocity)
+        self.pos = struct_vector3_to_numpy(gamecar.Location)
+        self.vel = struct_vector3_to_numpy(gamecar.Velocity)
         self.speed = mag(self.vel)
         self.to_global_matrix = rotation_to_mat(gamecar.Rotation)
         self.forward = self.to_global_matrix.dot(np.array([1.0, 0.0, 0.0]))
         self.right   = self.to_global_matrix.dot(np.array([0.0, 1.0, 0.0]))
         self.up      = self.to_global_matrix.dot(np.array(UP))
 class Ball(object):
-    def __init__(self, ball):
-        self.pos = stuct_vector3_to_numpy(ball.Location)
-        self.vel = stuct_vector3_to_numpy(ball.Velocity)
+    def __init__(self, ball=None):
+        self.pos = Vec3(0,0,0)
+        self.vel = Vec3(0,0,0)
+        self.angular_vel = Vec3(0,0,0)
+        if ball is None:
+            return
+        if isinstance(ball, Ball):
+            self.pos = ball.pos
+            self.vel = ball.vel
+            return
+        # c-struct
+        self.pos = struct_vector3_to_numpy(ball.Location)
+        self.vel = struct_vector3_to_numpy(ball.Velocity)
+        self.angular_vel = struct_vector3_to_numpy(ball.AngularVelocity)
 
 # A wrapper for the game_tick_packet
 class EasyGameState(object):
@@ -68,13 +79,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-def to_left_handedness(rotation_matrix):
-    return rotation_matrix
-    # To change it from left to right or right to left, flip it like this:
-    (( rx, ry, rz ),    ( ux, uy, uz ),    ( lx, ly, lz ),) = rotation_matrix
-    return np.array([
-        [rx, rz, ry],
-        [lx, lz, ly],
-        [ux, uz, uy],
-    ])
