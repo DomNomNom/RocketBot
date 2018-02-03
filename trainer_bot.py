@@ -35,7 +35,7 @@ class Agent(mimic_bot.Agent):
         if self.frames_until_scoring:
             self.frames_until_scoring -= 1
             return [0]*8
-        s = EasyGameState(game_tick_packet, self.index)
+        s = EasyGameState(game_tick_packet, self.team, self.index)
         self.scorer.update(s)
         # trace(self.scorer.get_score())
         # return [0]*8

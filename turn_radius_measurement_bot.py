@@ -26,7 +26,7 @@ class Agent:
         self.measurements = []
 
     def get_output_vector(self, game_tick_packet):
-        s = EasyGameState(game_tick_packet, self.index)
+        s = EasyGameState(game_tick_packet, self.team, self.index)
         speed = mag(s.car_vel)
         turn_rate = game_tick_packet.gamecars[self.index].AngularVelocity.Z  # rad/s
         turn_radius = speed/max(turn_rate,0.001)

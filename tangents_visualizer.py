@@ -7,7 +7,7 @@ from vector_math import *
 from tangents import TangetPath, get_tangent_paths, get_length_of_tangent_path, get_length_of_arc_0, get_length_of_arc_1, get_length_of_straight
 import numpy as np
 
-FIELD_BOUNDS = 8000
+FIELD_BOUNDS = 6000
 
 
 class TangentVisualizer(quicktracer.Display):

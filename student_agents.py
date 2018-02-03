@@ -257,6 +257,7 @@ class InterceptBallWithVel(StudentAgent):
     def get_output_vector(self, s):
         trace(s.car.pos , view_box='game')
         trace(s.ball.pos, view_box='game')
+        trace(s.enemy_goal_center, view_box='game')
 
         if not self.best_plan or self.should_recompute_plan(s, self.best_plan):
             self.best_plan = get_ball_intercept_plan(s, self.target_vel, previous_plan=self.best_plan)

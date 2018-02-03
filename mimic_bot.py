@@ -155,7 +155,7 @@ class Agent:
 
     def record(self, time, game_tick_packet):
 
-        state = EasyGameState(game_tick_packet, self.index)
+        state = EasyGameState(game_tick_packet, self.team, self.index)
         trace(state.car.pos)
 
         time = time - self.record_start_time
