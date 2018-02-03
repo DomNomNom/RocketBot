@@ -6,12 +6,13 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore
 from pyqtgraph.Point import Point
 import traceback
-from slicer_constants import MIN_X, MAX_X, POS, SET_SPOTS, SET_REGION
+from slicer_constants import MIN_X, MAX_X, POS, SET_SPOTS, SET_REGION, PLAYBACK_MARKER, TIME_IN_HISTORY
 
 
 spots = [{POS: [0, 0]}, {POS: [2, 1]}]
 region = None
 scatter_plot = None
+# playback_marker_scatter = None
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -40,6 +41,21 @@ def set_region(region_json):
 
     region.setRegion([min_x, max_x])
 
+def set_playback_marker(playback_marker_json):
+    global playback_marker
+    global view_box
+    # This shit makes the gui freeze after a while for some reason
+
+    # time_in_history = playback_marker_json[TIME_IN_HISTORY]
+    # if time_in_history < -1000:
+    #     return
+    # min_x, max_x = region.getRegion()
+    # time_in_history = min(max_x, max(min_x, time_in_history))
+    # playback_spots = [ {POS: (time_in_history, i)} for i in range(7) ]
+    # playback_marker_scatter.setData(playback_spots)
+    # eprint(time_in_history)
+    # playback_marker.setPos((time_in_history,0))
+    # eprint (playback_marker_json)
 
 def read_input():
     try:
@@ -53,12 +69,15 @@ def read_input():
                 set_spots(message[SET_SPOTS])
             elif SET_REGION in message:
                 set_region(message[SET_REGION])
+            elif PLAYBACK_MARKER in message:
+                set_playback_marker(message[PLAYBACK_MARKER])
             else:
                 eprint('bad message: ', message)
     except Exception as e:
         traceback.print_exc()
         sys.stderr.flush()
         os.exit(-1)
+
 
 class NonFocusStealingGraphicsWindow(pg.GraphicsWindow):
     def show(self):
@@ -69,6 +88,7 @@ class NonFocusStealingGraphicsWindow(pg.GraphicsWindow):
 def main():
     global region
     global scatter_plot
+    global view_box
 
 
     # window layout
@@ -92,6 +112,12 @@ def main():
     scatter_plot = pg.ScatterPlotItem(size=10, pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 255, 120))
     set_spots(spots)
     view_box.addItem(scatter_plot)
+
+    # playback_marker = pg.InfiniteLine(pos=(0,0), angle=30)
+    # view_box.addItem(playback_marker)
+    # global playback_marker_scatter
+    # playback_marker_scatter = pg.ScatterPlotItem(size=10, pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 255, 120))
+    # view_box.addItem(playback_marker_scatter)
 
     threading.Thread(target=read_input, daemon=True).start()
 

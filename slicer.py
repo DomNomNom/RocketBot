@@ -7,7 +7,7 @@ import atexit
 import collections
 import json
 
-from slicer_constants import MIN_X, MAX_X, POS, SET_SPOTS, SET_REGION
+from slicer_constants import MIN_X, MAX_X, POS, SET_SPOTS, SET_REGION, PLAYBACK_MARKER, TIME_IN_HISTORY
 
 class Slicer(object):
     def __init__(self):
@@ -25,9 +25,12 @@ class Slicer(object):
 
     def set_min_max(self, min_x, max_x):
         self.send_message({SET_REGION: {MIN_X:min_x, MAX_X:max_x}})
+    def set_playback_marker(self, time_in_history):
+        self.send_message({PLAYBACK_MARKER: {TIME_IN_HISTORY: time_in_history}})
 
     def send_message(self, data):
         line = json.dumps(data) + '\n'
+        # print (line)
         message = line.encode('utf-8')
         try:
             self.child_process.stdin.write(message)

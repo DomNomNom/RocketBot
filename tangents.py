@@ -114,13 +114,16 @@ def get_tangent_paths(pos_0, turn_radius_0, right_0, pos_1, turn_radius_1, right
     return options
 
 
-def get_length_of_tangent_path(path):
+def get_length_of_arc_0(path):
     radius_0 = dist(path.turn_center_0, path.pos_0)
+    return radius_0 * directional_angle(path.pos_0, path.turn_center_0, path.tangent_0, path.clockwise_0)
+def get_length_of_arc_1(path):
     radius_1 = dist(path.turn_center_1, path.pos_1)
-    # Note: There is intentional asymmetry in the next two lines
-    arc_length_0 = radius_0 * directional_angle(path.pos_0, path.turn_center_0, path.tangent_0, path.clockwise_0)
-    arc_length_1 = radius_1 * directional_angle(path.tangent_1, path.turn_center_1, path.pos_1, path.clockwise_1)
-    return arc_length_0 + dist(path.tangent_0, path.tangent_1) + arc_length_1
+    return radius_1 * directional_angle(path.tangent_1, path.turn_center_1, path.pos_1, path.clockwise_1)
+def get_length_of_straight(path):
+    return dist(path.tangent_0, path.tangent_1)
+def get_length_of_tangent_path(path):
+    return get_length_of_arc_0(path) + get_length_of_straight(path) + get_length_of_arc_1(path)
 
 
 if __name__ == '__main__':

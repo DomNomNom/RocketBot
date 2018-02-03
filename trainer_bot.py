@@ -22,7 +22,7 @@ class Agent(mimic_bot.Agent):
         self.frames_until_scoring = NUM_FRAMES_TO_WAIT_FOR_BAKKES_RESET
         # target_pos = Vec3(0,0,0)
         target_pos = Vec3(0,0,0)
-        target_vel = normalize(Vec3(1,2,0)) * MAX_CAR_SPEED
+        target_vel = normalize(Vec3(1,0,0)) * MAX_CAR_SPEED
         target_pos -= target_vel * 0.05
         self.scorer = scorer.PosVelScorer(target_pos, target_vel)
         # self.student = student_agents.DriveToPosAndVel(target_pos, target_vel)

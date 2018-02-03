@@ -133,12 +133,13 @@ class Agent:
             bakkes.rcon(';'.join([
                 bakkes_reset_command,
                 'ball location 0 0 0',
-                'ball velocity -500 500 0',
+                'ball velocity 0 1000 0',
                 'ball angularvelocity 0 0 0',
             ]))  ## HAAX
             print('ball reset')
             self.mimic_start_time = time
             self.on_mimic_reset()
+        self.slicer.set_playback_marker(time_in_history)
         return self.decide_on_action(action_dict, time_in_history, game_tick_packet)
 
     def on_mimic_reset(self):

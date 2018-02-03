@@ -2,8 +2,9 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui
 
 import quicktracer
+from quicktracer import trace
 from vector_math import *
-from tangents import TangetPath, get_tangent_paths, get_length_of_tangent_path
+from tangents import TangetPath, get_tangent_paths, get_length_of_tangent_path, get_length_of_arc_0, get_length_of_arc_1, get_length_of_straight
 import numpy as np
 
 FIELD_BOUNDS = 8000
@@ -28,17 +29,17 @@ class TangentVisualizer(quicktracer.Display):
         serialized = [ np.array(x) if isinstance(x, list) else x for x in serialized ]
         self.path = TangetPath(*serialized)
 
-    def init_view_area(self, view_area):
-        view_area.invertX(True)  # make the coordinate system the same as the RocketLeague ground, viewed from above
-        view_area.showGrid(x=True,y=True)
-        view_area.setAspectLocked()
-        view_area.setXRange(-FIELD_BOUNDS, FIELD_BOUNDS)
-        view_area.setYRange(-FIELD_BOUNDS, FIELD_BOUNDS)
-        view_area.addItem(self.turn_circle_scatter)
-        view_area.addItem(self.wedge_curve_0)
-        view_area.addItem(self.wedge_curve_1)
-        view_area.addItem(self.tangent_curve)
-        view_area.addItem(self.speed_arrows)
+    def init_view_box(self, view_box):
+        view_box.invertX(True)  # make the coordinate system the same as the RocketLeague ground, viewed from above
+        view_box.showGrid(x=True,y=True)
+        view_box.setAspectLocked()
+        view_box.setXRange(-FIELD_BOUNDS, FIELD_BOUNDS)
+        view_box.setYRange(-FIELD_BOUNDS, FIELD_BOUNDS)
+        view_box.addItem(self.turn_circle_scatter)
+        view_box.addItem(self.wedge_curve_0)
+        view_box.addItem(self.wedge_curve_1)
+        view_box.addItem(self.tangent_curve)
+        view_box.addItem(self.speed_arrows)
 
     def render(self):
         path = self.path
@@ -106,13 +107,18 @@ class TangentVisualizer(quicktracer.Display):
             },
         ]
         self.speed_arrows.setData(speed_arrow_data)
-        # self.speed_arrows.rotate(angle)
 
+        # part_0 = get_length_of_arc_0(path)
+        # part_1 = get_length_of_straight(path)
+        # part_2 = get_length_of_arc_1(path)
+        # trace(part_0,    view_box='path section lengths')
+        # trace(part_0 + part_1,    view_box='path section lengths')
+        # trace(part_0 + part_1 + part_2, view_box='path section lengths')
 
         set_data_points(self.tangent_curve, points)
 
-def set_data_points(view_area_data_item, points):
-    view_area_data_item.setData(
+def set_data_points(view_box_data_item, points):
+    view_box_data_item.setData(
         [p[0] for p in points],
         [p[1] for p in points],
     )
@@ -155,6 +161,11 @@ def main():
     vel_curve_0 = pg.PlotDataItem()
     vel_curve_1 = pg.PlotDataItem()
 
+    view_box = win.addPlot()
+    view_boxes = {'tangents': view_box}
+    visualizer = TangentVisualizer()
+    visualizer.set_view_box_id('tangents')  # This is kinda breaking quicktracer encapsulation but whatever
+
     def update(control_points):
         center_0, vel_0, center_1, vel_1 = control_points
         set_data_points(vel_curve_0, [center_0, vel_0])
@@ -181,7 +192,7 @@ def main():
         tangent_paths.sort(key=get_length_of_tangent_path)
         path = tangent_paths[0]
         visualizer.add_value({quicktracer.VALUE: path})
-        visualizer.render_with_init(win)
+        visualizer.render_with_init(win, view_boxes)
 
 
     class DraggableNodes(pg.GraphItem):
@@ -247,8 +258,6 @@ def main():
             ev.accept()
 
 
-    visualizer = TangentVisualizer()
-    visualizer.render_with_init(win)
 
     center_0 = Vec2(1, 2)
     center_1 = Vec2(7, 5.5)
@@ -263,10 +272,10 @@ def main():
     draggables.setData(pos=control_points, symbol='o', size=30, symbolBrush=pg.mkBrush('#FFFFFF40'))
 
 
-    view_area = visualizer.view_area
-    view_area.addItem(vel_curve_0)
-    view_area.addItem(vel_curve_1)
-    view_area.addItem(draggables)
+    visualizer.render_with_init(win, view_boxes)
+    view_box.addItem(vel_curve_0)
+    view_box.addItem(vel_curve_1)
+    view_box.addItem(draggables)
 
 
     update(control_points)
