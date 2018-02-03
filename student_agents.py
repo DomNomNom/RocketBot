@@ -12,6 +12,7 @@ from tangents_visualizer import TangentVisualizer
 from scorer import rms_deviation_from_diffs
 # import basic_physics
 import marvin_atbab
+from marvin_atbab import BALL_STATE_POS, BALL_STATE_VEL, BALL_STATE_ANGULAR_VEL, BALL_STATE_TIME
 import time
 
 TURN_RADIUS_WHILE_BOOSTING = 1100
@@ -153,7 +154,6 @@ def drive_to_pos_vel(s, target_pos, target_vel):
     if path is None:
         print ('omg no tangent path! wtf')
         return failsafe_output_vector(s)
-    trace(path, custom_display=TangentVisualizer)
 
     target_speed = mag(target_vel)  # TODO: Can we go that fast?
     return execute_tangent_path(s, path, target_speed)
@@ -166,9 +166,10 @@ BallInterceptPlan = namedtuple(
     'start_time tangent_path tangent_path_duration ball_time ball_pos ball_vel ball_angular_vel target_speed'
 )
 
-def plan_from_prediction(s, prediction, target_vel):
-    ball_pos, ball_vel, ball_angular_vel, ball_time = prediction
-    path = get_best_tangent_path(s, ball_pos, target_vel)
+def plan_from_ball_state(s, ball_state, target_vel):
+    ball_pos, ball_vel, ball_angular_vel, ball_time = ball_state
+    target_pos = ball_pos - 1.8*BALL_RADIUS * normalize(target_vel)
+    path = get_best_tangent_path(s, target_pos, target_vel)
     if path is None:
         return None
 
@@ -186,7 +187,7 @@ def plan_from_prediction(s, prediction, target_vel):
     )
 
 def plan_score(plan):
-    return abs(plan.start_time + plan.tangent_path_duration - plan.ball_time) #+ 0.9* plan.tangent_path_duration
+    return -abs(plan.start_time + plan.tangent_path_duration - plan.ball_time) #- 0.9* plan.tangent_path_duration
 def get_ball_intercept_plan(s, target_vel, previous_plan=None):
     predicted_ball = Ball()
     plans = []
@@ -201,30 +202,31 @@ def get_ball_intercept_plan(s, target_vel, previous_plan=None):
     if previous_plan is None:
         num_random_samples = 24
     else:
-        num_random_samples = 10
+        num_random_samples = 5
         num_close_samples = 10
         prev_time = previous_plan.ball_time# - previous_plan.start_time
-        #                                                                  prediction[3] means ball_time
-        closest_predictions = sorted(ball_path, key=lambda prediction: abs(s.time+prediction[3] - prev_time))
-        ball_path_samples.extend(closest_predictions[:num_close_samples])
-    # for prediction in ball_path_samples:
-    #     trace(prediction[3])
+        closest_ball_states = sorted(ball_path, key=lambda ball_state: abs(s.time+ball_state[BALL_STATE_TIME] - prev_time))
+        ball_path_samples.extend(closest_ball_states[:num_close_samples])
     ball_path_samples.extend([
         ball_path[i]
         for i in np.random.choice(len(ball_path), num_random_samples, replace=False)
     ])
     # trace(len(ball_path_samples))
+    ball_path_samples = [
+        ball_state for ball_state in ball_path_samples
+        if ball_state[BALL_STATE_POS][-1] < 4 * BALL_RADIUS
+    ]
 
-    for prediction in ball_path_samples:
-        plans.append(plan_from_prediction(s, prediction, target_vel))
-    # for prediction in ball_path[::10]:
-    #     plans.append(plan_from_prediction(s, prediction, target_vel))
+    for ball_state in ball_path_samples:
+        plans.append(plan_from_ball_state(s, ball_state, target_vel))
+    # for ball_state in ball_path[::10]:
+    #     plans.append(plan_from_ball_state(s, ball_state, target_vel))
 
     plans = [p for p in plans if p is not None]
     if not plans:
         return None
 
-    best_plan = min(plans, key=plan_score)
+    best_plan = max(plans, key=plan_score)
     time_2 = time.clock()
     # trace(best_plan.ball_time - best_plan.start_time)
     # trace(time_diff)
@@ -236,9 +238,6 @@ def get_ball_intercept_plan(s, target_vel, previous_plan=None):
     return best_plan
 
 def execute_intercept_plan(s, intercept_plan):
-    trace(intercept_plan.tangent_path, custom_display=TangentVisualizer, view_box='game')
-    trace(s.car.pos , view_box='game')
-    trace(s.ball.pos, view_box='game')
     return execute_tangent_path(s, intercept_plan.tangent_path, intercept_plan.target_speed)
 
 
@@ -249,23 +248,38 @@ class DriveToPosAndVel(StudentAgent):
     def get_output_vector(self, s):
         return drive_to_pos_vel(s, self.target_pos, self.target_vel)
 
+
 class InterceptBallWithVel(StudentAgent):
     def __init__(self, target_vel):
         self.target_vel = target_vel
         self.best_plan = None
         # TODO: offset
     def get_output_vector(self, s):
+        trace(s.car.pos , view_box='game')
+        trace(s.ball.pos, view_box='game')
+
         if not self.best_plan or self.should_recompute_plan(s, self.best_plan):
             self.best_plan = get_ball_intercept_plan(s, self.target_vel, previous_plan=self.best_plan)
-        if not self.best_plan:
-            return failsafe_output_vector(s)
-        return execute_intercept_plan(s, self.best_plan)
+            if not self.best_plan:
+                return failsafe_output_vector(s)
+            trace(self.best_plan.tangent_path, custom_display=TangentVisualizer, key='tangent', view_box='game')
+            return execute_intercept_plan(s, self.best_plan)
+        else:
+            # Don't change plans if we're close.
+            path = get_best_tangent_path(s, self.best_plan.tangent_path.pos_1, self.target_vel)
+            trace(path, custom_display=TangentVisualizer, key='tangent', view_box='game')
+            return execute_tangent_path(s, path, mag(self.target_vel))
+
+            # trace(self.best_plan.tangent_path, custom_display=TangentVisualizer, view_box='game')
+            # return drive_to_pos_vel(s, self.best_plan.tangent_path.pos_1, self.target_vel)
+
     def should_recompute_plan(self, s, plan):
         duration_until_hit =  plan.ball_time - s.time  #estimate_tangent_path_execution_time(s, self.best_plan.tangent_path, mag(self.target_vel))
         should_recompute = not (-.1 < duration_until_hit < 1.0)
-        trace(duration_until_hit, view_box='eta')
-        trace(should_recompute, view_box='eta')
+        # trace(duration_until_hit, view_box='ETA')
+        # trace(should_recompute, view_box='ETA')
         return should_recompute
+
 
 class TheoreticalPhysicist(StudentAgent):
     ''' Just sits in an armchair and tries to predict the ball and figure out how good the prediction is '''

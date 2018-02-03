@@ -11,6 +11,8 @@ UP.flags.writeable = False
 STEER_R = +1
 STEER_L = -1
 
+
+BALL_RADIUS = 93.
 MAX_CAR_SPEED = 2300.005
 
 def sanitize_output_vector(output_vector):

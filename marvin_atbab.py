@@ -1,4 +1,5 @@
-# Physics done by Marvin. Thank you! :D
+# Some physics done by Marvin. Thank you! :D
+# Not perfect but will do for now.
 
 import math, numpy as np
 import matplotlib.pyplot as plt
@@ -7,6 +8,12 @@ import time as timer
 # from quicktracer import trace
 
 from controller_input import controller
+
+# Indecies into the output tuples of predict_b.
+BALL_STATE_POS = 0
+BALL_STATE_VEL = 1
+BALL_STATE_ANGULAR_VEL = 2
+BALL_STATE_TIME = 3
 
 
 class Agent:
