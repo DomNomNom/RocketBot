@@ -163,7 +163,7 @@ def estimate_tangent_path_execution_time(s, path, target_speed):
 
 BallInterceptPlan = namedtuple(
     'BallInterceptPlan',
-    'start_time tangent_path tangent_path_duration ball_time ball_pos ball_vel ball_angular_vel target_speed'
+    'start_time tangent_path tangent_path_duration ball_time ball_pos ball_vel ball_angular_vel target_vel'
 )
 
 def plan_from_ball_state(s, ball_state, target_vel):
@@ -173,8 +173,7 @@ def plan_from_ball_state(s, ball_state, target_vel):
     if path is None:
         return None
 
-    target_speed = mag(target_vel)
-    tangent_path_duration = estimate_tangent_path_execution_time(s, path, target_speed)
+    tangent_path_duration = estimate_tangent_path_execution_time(s, path, mag(target_vel))
     return BallInterceptPlan(
         start_time=s.time,
         tangent_path=path,
@@ -183,12 +182,12 @@ def plan_from_ball_state(s, ball_state, target_vel):
         ball_pos=ball_pos,
         ball_vel=ball_vel,
         ball_angular_vel=ball_angular_vel,
-        target_speed=target_speed,
+        target_vel=target_vel,
     )
 
 def plan_score(plan):
     return -abs(plan.start_time + plan.tangent_path_duration - plan.ball_time) #- 0.9* plan.tangent_path_duration
-def get_ball_intercept_plan(s, target_vel, previous_plan=None):
+def get_ball_intercept_plan(s, get_target_vel, previous_plan=None):
     predicted_ball = Ball()
     plans = []
     intercept_time = 0
@@ -218,7 +217,7 @@ def get_ball_intercept_plan(s, target_vel, previous_plan=None):
     ]
 
     for ball_state in ball_path_samples:
-        plans.append(plan_from_ball_state(s, ball_state, target_vel))
+        plans.append(plan_from_ball_state(s, ball_state, get_target_vel(s, ball_state)))
     # for ball_state in ball_path[::10]:
     #     plans.append(plan_from_ball_state(s, ball_state, target_vel))
 
@@ -238,7 +237,7 @@ def get_ball_intercept_plan(s, target_vel, previous_plan=None):
     return best_plan
 
 def execute_intercept_plan(s, intercept_plan):
-    return execute_tangent_path(s, intercept_plan.tangent_path, intercept_plan.target_speed)
+    return execute_tangent_path(s, intercept_plan.tangent_path, mag(intercept_plan.target_vel))
 
 
 class DriveToPosAndVel(StudentAgent):
@@ -254,23 +253,29 @@ class InterceptBallWithVel(StudentAgent):
         self.target_vel = target_vel
         self.best_plan = None
         # TODO: offset
+    def get_target_vel(self, s, ball_state):
+        return self.target_vel
     def get_output_vector(self, s):
         trace(s.car.pos , view_box='game')
         trace(s.ball.pos, view_box='game')
         trace(s.enemy_goal_center, view_box='game')
 
+
         if not self.best_plan or self.should_recompute_plan(s, self.best_plan):
-            self.best_plan = get_ball_intercept_plan(s, self.target_vel, previous_plan=self.best_plan)
+            self.best_plan = get_ball_intercept_plan(s, self.get_target_vel, previous_plan=self.best_plan)
             if not self.best_plan:
                 return failsafe_output_vector(s)
             trace(self.best_plan.tangent_path, custom_display=TangentVisualizer, key='tangent', view_box='game')
             return execute_intercept_plan(s, self.best_plan)
         else:
             # Don't change plans if we're close.
-            path = get_best_tangent_path(s, self.best_plan.tangent_path.pos_1, self.target_vel)
+            path = get_best_tangent_path(
+                s,
+                self.best_plan.tangent_path.pos_1,
+                self.best_plan.target_vel
+            )
             trace(path, custom_display=TangentVisualizer, key='tangent', view_box='game')
-            return execute_tangent_path(s, path, mag(self.target_vel))
-
+            return execute_tangent_path(s, path, mag(self.best_plan.target_vel))
             # trace(self.best_plan.tangent_path, custom_display=TangentVisualizer, view_box='game')
             # return drive_to_pos_vel(s, self.best_plan.tangent_path.pos_1, self.target_vel)
 
@@ -280,6 +285,11 @@ class InterceptBallWithVel(StudentAgent):
         # trace(duration_until_hit, view_box='ETA')
         # trace(should_recompute, view_box='ETA')
         return should_recompute
+class InterceptBallTowardsEnemyGoal(InterceptBallWithVel):
+    def __init__(self):
+        self.best_plan = None
+    def get_target_vel(self, s, ball_state):
+        return MAX_CAR_SPEED * normalize(s.enemy_goal_center - ball_state[BALL_STATE_POS])
 
 
 class TheoreticalPhysicist(StudentAgent):

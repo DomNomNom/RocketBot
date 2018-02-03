@@ -133,7 +133,7 @@ class Agent:
             bakkes.rcon(';'.join([
                 bakkes_reset_command,
                 'ball location 0 0 0',
-                'ball velocity 0 -1000 -1000',
+                'ball velocity -0 0 -1000',
                 'ball angularvelocity 0 0 0',
             ]))  ## HAAX
             print('ball reset')
