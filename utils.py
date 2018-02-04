@@ -73,7 +73,8 @@ class EasyGameState(object):
         self.ball = Ball(game_tick_packet.gameball)
         self.time = game_tick_packet.gameInfo.TimeSeconds
         enemy_goal_dir = 1.0 if team==0 else -1.0
-        self.enemy_goal_center = Vec3(0, enemy_goal_dir*5350, 200)
+        self.enemy_goal_center = Vec3(0,  enemy_goal_dir*5350, 200)
+        self.own_goal_center   = Vec3(0, -enemy_goal_dir*5350, 200)
 
 def main():
     import sys
