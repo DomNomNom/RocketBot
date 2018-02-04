@@ -206,13 +206,30 @@ def predict_b(L0,V0,aV0,dt):
 
     r, gc = 0.030455, -650
     e2,e1,a = .6,.714,.4
-    R = 93
+    R = 92.
     g = a3([0,0,gc])
 
+
+    def rolling_model(L0, V0, aV0, dt):
+        '''
+            Note: this is a hack.
+            returns None if the rolling model is not applicable.
+        '''
+        if L0[-1] > R * 1.2: return None
+        if abs(V0[-1]) > 2000: return None
+        if abs(np.linalg.norm(aV0)*R - np.linalg.norm(V0)) > 30: return None
+        nL = L0 + V0*dt*1.0
+        nV = a3([V0[0], V0[1], 0])
+        return (nL, V0, aV0)
     def LVt(L0,V0,aV0,dt):
+        roll_predict = rolling_model(L0, V0, aV0, dt)
+        if roll_predict is not None:
+            return roll_predict
+
         A = g -r*V0
         nV = V0 + A*dt
         nL = L0 + V0*dt + .5*A*dt**2
+
 
         total_v = d3(nV) # limiting ball speed
         if total_v > 6000:

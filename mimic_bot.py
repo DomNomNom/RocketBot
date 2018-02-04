@@ -113,17 +113,6 @@ class Agent:
             print('recording finished. ')
             self.state = STATE_MIMIC
 
-
-        # make the player float
-        if self.frames_until_bakkes_air == 0:
-            bakkes.rcon(';'.join([
-                'player location -150 150 250',
-                'player velocity -0 0 10',
-            ]))
-            self.frames_until_bakkes_air = 2
-        else:
-            self.frames_until_bakkes_air -= 1
-
         if self.state == STATE_MIMIC:
             return self.mimic(time, game_tick_packet)
         elif self.state == STATE_RECORD:
@@ -142,15 +131,13 @@ class Agent:
                 self.history.get_closest_game_tick_packet(self.history.start_time)
             )
 
-            self.slicer.set_min_max(0, 2.5)
-
             rand3 = 100000 * np.random.rand(3) - 50000
             # print ()
             # bakkes.rcon(bakkes_reset_command)
             bakkes.rcon(';'.join([
-                # bakkes_reset_command,
+                bakkes_reset_command,
                 'ball location 0 0 0',
-                'ball velocity -0 0 -0',
+                'ball velocity -0 -500 500',
                 'ball angularvelocity 0 0 0',
 
                 # 'player location -200 200 -2000',
@@ -158,7 +145,7 @@ class Agent:
                 # 'player rotation 0 0 0'
                 # 'player rotation 0 0 50000',
                 # 'player rotation 0 0 100000',
-                'player rotation {} {} {}'.format(*rand3),
+                # 'player rotation {} {} {}'.format(*rand3),
                 # 'player rotation -49000 0 0',
                 # 'player rotation -50000 0 0',
                 # 'player rotation -9800000 0 0',
@@ -185,7 +172,7 @@ class Agent:
     def record(self, time, game_tick_packet):
 
         state = EasyGameState(game_tick_packet, self.team, self.index)
-        trace(state.car.pos)
+        trace(state.car.on_ground)
 
         time = time - self.record_start_time
 

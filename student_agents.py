@@ -240,7 +240,7 @@ def execute_intercept_plan(s, intercept_plan):
     return execute_tangent_path(s, intercept_plan.tangent_path, mag(intercept_plan.target_vel))
 
 
-def set_flying_orientation(s, forward, up=UP):
+def get_pitch_yaw_roll(s, forward, up=UP):
     right = normalize(cross(forward, up))
     up = normalize(cross(right, forward))
     car = s.car
@@ -265,17 +265,7 @@ def set_flying_orientation(s, forward, up=UP):
     # pitch = 0
     # yaw = 0
     # roll = 0
-
-    return [
-        0,  # fThrottle
-        0,  # fSteer
-        pitch,  # fPitch
-        yaw,  # fYaw
-        roll,  # fRoll
-        0,  # bJump
-        0,  # bBoost
-        0,  # bHandbrake
-    ]
+    return (pitch, yaw, roll)
 
 ############################################################
 
@@ -284,7 +274,55 @@ class AirStabilizerTowardsBall(StudentAgent):
         pass
     def get_output_vector(self, s):
         target_pos = s.ball.pos
-        return set_flying_orientation(s, normalize(target_pos - s.car.pos))
+        return get_pitch_yaw_roll(s, normalize(target_pos - s.car.pos))
+class AirStabilizerTowardsOwnGoal(StudentAgent):
+    def __init__(self):
+        self.jumped_last_frame = False
+    def get_output_vector(self, s):
+        target_pos = s.own_goal_center
+        should_jump = s.car.on_ground and not self.jumped_last_frame
+        self.jumped_last_frame = should_jump
+        pitch, yaw, roll = get_pitch_yaw_roll(s, normalize(target_pos - s.car.pos))
+        return [
+            1,  # fThrottle
+            0,  # fSteer
+            pitch,  # fPitch
+            yaw,  # fYaw
+            roll,  # fRoll
+            should_jump,  # bJump
+            0,  # bBoost
+            0,  # bHandbrake
+        ]
+        return output_vector
+
+class HumanStudent(StudentAgent):
+    def __init__(self):
+        from controller_input import controller
+        self.controller = controller
+    def get_output_vector(self, s):
+        return (
+            round(self.controller.fThrottle),
+            round(self.controller.fSteer),
+            round(self.controller.fPitch),
+            round(self.controller.fYaw),
+            round(self.controller.fRoll),
+            round(self.controller.bJump),
+            round(self.controller.bBoost),
+            round(self.controller.bHandbrake),
+        )
+
+class CompositeStudent(StudentAgent):
+    def __init__(self):
+        self.stablizer = AirStabilizerTowardsOwnGoal()
+        self.hit_ball_into_goal = InterceptBallTowardsEnemyGoal()
+
+    def get_sub_student(self, s):
+        if not s.car.on_ground or dot(s.car.pos, UP) > 3*BALL_RADIUS:
+            return self.stablizer
+        else:
+            return self.hit_ball_into_goal
+    def get_output_vector(self, s):
+        return self.get_sub_student(s).get_output_vector(s)
 
 class DriveToPosAndVel(StudentAgent):
     def __init__(self, target_pos, target_vel):
@@ -304,8 +342,10 @@ class InterceptBallWithVel(StudentAgent):
     def get_output_vector(self, s):
         trace(s.car.pos , view_box='game')
         trace(s.ball.pos, view_box='game')
-        trace(s.enemy_goal_center, view_box='game')
 
+        # trace(mag(s.ball.angular_vel * BALL_RADIUS), view_box='vel')
+        # trace(mag(s.ball.vel), view_box='vel')
+        # trace(s.ball.vel)
 
         if not self.best_plan or self.should_recompute_plan(s, self.best_plan):
             self.best_plan = get_ball_intercept_plan(s, self.get_target_vel, previous_plan=self.best_plan)

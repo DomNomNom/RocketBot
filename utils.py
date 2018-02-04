@@ -12,8 +12,17 @@ STEER_R = +1
 STEER_L = -1
 
 
-BALL_RADIUS = 93.
+BALL_RADIUS = 92.
 MAX_CAR_SPEED = 2300.005
+
+OUT_VEC_THROTTLE = 0
+OUT_VEC_STEER = 1
+OUT_VEC_PITCH = 2
+OUT_VEC_YAW = 3
+OUT_VEC_ROLL = 4
+OUT_VEC_JUMP = 5
+OUT_VEC_BOOST = 6
+OUT_VEC_HANDBRAKE = 7
 
 def sanitize_output_vector(output_vector):
     return [
@@ -50,6 +59,7 @@ class Car(object):
         self.forward = self.to_global_matrix.dot(np.array([1.0, 0.0, 0.0]))
         self.right   = self.to_global_matrix.dot(np.array([0.0, 1.0, 0.0]))
         self.up      = self.to_global_matrix.dot(np.array(UP))
+        self.on_ground = gamecar.bOnGround
 class Ball(object):
     def __init__(self, ball=None):
         self.pos = Vec3(0,0,0)
