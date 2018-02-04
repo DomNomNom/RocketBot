@@ -59,6 +59,8 @@ class Agent:
         self.mimic_start_time = -1
         self.slicer = slicer.Slicer()
         self.init_slicer(self.slicer, self.history)
+        self.frames_until_bakkes_air = 100
+
 
     def init_slicer(self, slicer, history):
         actions = history.get_action_dict()
@@ -112,6 +114,16 @@ class Agent:
             self.state = STATE_MIMIC
 
 
+        # make the player float
+        if self.frames_until_bakkes_air == 0:
+            bakkes.rcon(';'.join([
+                'player location -150 150 250',
+                'player velocity -0 0 10',
+            ]))
+            self.frames_until_bakkes_air = 2
+        else:
+            self.frames_until_bakkes_air -= 1
+
         if self.state == STATE_MIMIC:
             return self.mimic(time, game_tick_packet)
         elif self.state == STATE_RECORD:
@@ -129,17 +141,34 @@ class Agent:
             bakkes_reset_command = bakkes.convert_tick_packet_to_command(
                 self.history.get_closest_game_tick_packet(self.history.start_time)
             )
+
+            self.slicer.set_min_max(0, 2.5)
+
+            rand3 = 100000 * np.random.rand(3) - 50000
+            # print ()
             # bakkes.rcon(bakkes_reset_command)
             bakkes.rcon(';'.join([
-                bakkes_reset_command,
+                # bakkes_reset_command,
                 'ball location 0 0 0',
-                'ball velocity -0 0 -1000',
+                'ball velocity -0 0 -0',
                 'ball angularvelocity 0 0 0',
+
+                # 'player location -200 200 -2000',
+                # 'player velocity -0 0 10',
+                # 'player rotation 0 0 0'
+                # 'player rotation 0 0 50000',
+                # 'player rotation 0 0 100000',
+                'player rotation {} {} {}'.format(*rand3),
+                # 'player rotation -49000 0 0',
+                # 'player rotation -50000 0 0',
+                # 'player rotation -9800000 0 0',
             ]))  ## HAAX
             print('ball reset')
             self.mimic_start_time = time
             self.on_mimic_reset()
-        self.slicer.set_playback_marker(time_in_history)
+        # self.slicer.set_playback_marker(time_in_history)
+
+
         return self.decide_on_action(action_dict, time_in_history, game_tick_packet)
 
     def on_mimic_reset(self):

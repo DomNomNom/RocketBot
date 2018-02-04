@@ -44,6 +44,7 @@ class Car(object):
     def __init__(self, gamecar):
         self.pos = struct_vector3_to_numpy(gamecar.Location)
         self.vel = struct_vector3_to_numpy(gamecar.Velocity)
+        self.angular_vel = struct_vector3_to_numpy(gamecar.AngularVelocity)
         self.speed = mag(self.vel)
         self.to_global_matrix = rotation_to_mat(gamecar.Rotation)
         self.forward = self.to_global_matrix.dot(np.array([1.0, 0.0, 0.0]))

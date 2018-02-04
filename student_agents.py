@@ -240,6 +240,46 @@ def execute_intercept_plan(s, intercept_plan):
     return execute_tangent_path(s, intercept_plan.tangent_path, mag(intercept_plan.target_vel))
 
 
+def set_flying_orientation(s, forward, up=UP):
+    right = normalize(cross(forward, up))
+    car = s.car
+    is_up = dot(car.up, up)
+    roll = -dot(cross(car.up, up), forward)
+    yaw = is_up * dot(cross(car.forward, forward), up)
+    pitch = dot(cross(car.forward, forward), right)  # -car.right seems to work better than right. ¯\_(ツ)_/¯
+
+    # PID control to stop overshooting.
+    roll_vel  = dot(car.angular_vel, car.forward)
+    yaw_vel   = dot(car.angular_vel, car.up)
+    pitch_vel = dot(car.angular_vel, car.right)
+    roll  = 3*roll  + 0.25*roll_vel
+    yaw   = 3*yaw   - 0.55*yaw_vel
+    pitch = 3*pitch + 0.55*pitch_vel
+    # if dot(car.forward, forward) < 0:
+    #     roll = 0
+    # pitch = 0
+    # yaw = 0
+    # roll = 0
+    return [
+        0,  # fThrottle
+        0,  # fSteer
+        pitch,  # fPitch
+        yaw,  # fYaw
+        roll,  # fRoll
+        0,  # bJump
+        0,  # bBoost
+        0,  # bHandbrake
+    ]
+
+############################################################
+
+class AirStabilizerTowardsBall(StudentAgent):
+    def __init__(self):
+        pass
+    def get_output_vector(self, s):
+        target_pos = s.ball.pos
+        return set_flying_orientation(s, normalize(target_pos - s.car.pos))
+
 class DriveToPosAndVel(StudentAgent):
     def __init__(self, target_pos, target_vel):
         self.target_pos = target_pos

@@ -29,7 +29,8 @@ class Agent(mimic_bot.Agent):
         # self.student = student_agents.TheoreticalPhysicist()
         # self.student = student_agents.InterceptBallWithVel(target_vel)
         # self.student = marvin_atbab.Agent(self.name, self.team, self.index)
-        self.student = student_agents.InterceptBallTowardsEnemyGoal()
+        # self.student = student_agents.InterceptBallTowardsEnemyGoal()
+        self.student = student_agents.AirStabilizerTowardsBall()
 
     # Override
     def decide_on_action(self, action_dict, time_in_history, game_tick_packet):
