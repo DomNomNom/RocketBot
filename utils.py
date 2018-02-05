@@ -60,6 +60,9 @@ class Car(object):
         self.right   = self.to_global_matrix.dot(np.array([0.0, 1.0, 0.0]))
         self.up      = self.to_global_matrix.dot(np.array(UP))
         self.on_ground = gamecar.bOnGround
+        self.jumped = gamecar.bJumped
+        self.double_jumped = gamecar.bDoubleJumped
+
 class Ball(object):
     def __init__(self, ball=None):
         self.pos = Vec3(0,0,0)

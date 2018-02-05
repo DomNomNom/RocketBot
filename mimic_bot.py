@@ -124,6 +124,8 @@ class Agent:
             return [0] * 8  # No action
         replay_duration = self.history.end_time - self.history.start_time
 
+        self.slicer.set_min_max(0, 20.0)
+
         time_in_history = time - self.mimic_start_time + self.history.start_time
         if time - self.mimic_start_time > replay_duration or self.should_reset_mimic:
             self.should_reset_mimic = False
@@ -131,18 +133,20 @@ class Agent:
                 self.history.get_closest_game_tick_packet(self.history.start_time)
             )
 
-            rand3 = 100000 * np.random.rand(3) - 50000
+            rand_axis = 100000 * np.random.rand(1)[0] - 50000
+            # rand3 = 100000 * np.random.rand(3) - 50000
             # print ()
             # bakkes.rcon(bakkes_reset_command)
             bakkes.rcon(';'.join([
-                bakkes_reset_command,
-                'ball location 0 0 0',
-                'ball velocity -0 -500 500',
-                'ball angularvelocity 0 0 0',
+                # bakkes_reset_command,
+                'ball location 0 0 100',
+                'ball velocity -0 0 0',
+                # 'ball angularvelocity 0 0 0',
 
                 # 'player location -200 200 -2000',
-                # 'player velocity -0 0 10',
-                # 'player rotation 0 0 0'
+                'player location -200 200 20',
+                'player velocity 0 0 0',
+                'player rotation 0 0 0'
                 # 'player rotation 0 0 50000',
                 # 'player rotation 0 0 100000',
                 # 'player rotation {} {} {}'.format(*rand3),

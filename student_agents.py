@@ -267,7 +267,105 @@ def get_pitch_yaw_roll(s, forward, up=UP):
     # roll = 0
     return (pitch, yaw, roll)
 
+def flip_in_direction(s, target_direction):
+    '''
+    returns a (pitch, yaw, roll) tuple which will make the car flip in the @target_direction
+
+    Flip testing notes:
+    I call it flipping, others call it air-rolling, but I dislike "rolling" in this context as it implies it's slow.
+    Flipping will set your vertical speed to 0.
+    "flip_forward" is the normalized direction for car.forward projected onto the horizontal plane.
+    I define a "front flip" to be the flip where the cars nose turns towards the wheels.
+    When front flipping, velocity is added in the flip_forward direction.
+    This implies that if you pich your car up slightly more than 90degrees and front flip, you'll gain speed in the direction what used to be your backwards (before pitching up).
+    car-orientation-roll does not affect flip_forward.
+    '''
+    target_direction = normalize(target_direction)
+    flip_forward = normalize(z0(s.car.forward))
+    flip_right = cross(flip_forward, UP)
+
+    yaw = 0.0
+    pitch = -dot(target_direction, flip_forward)
+    roll = -dot(target_direction, flip_right)
+    # pitch = 0
+    return (pitch, yaw, roll)
+
+
+
 ############################################################
+# pure functions above.
+# stateful classes below.
+############################################################
+
+class FlipTowardsBall(StudentAgent):
+    def __init__(self):
+        self.jumped_last_frame = False
+        self.last_time_of_double_jump = 0.0
+        self.last_time_of_ground_non_jump = 0.0
+        self.last_time_in_air = 0.0
+        self.last_time_on_ground = 0.0
+
+    def get_output_vector(self, s):
+
+        if s.car.on_ground: self.last_time_on_ground = s.time
+        else:               self.last_time_in_air    = s.time
+
+        target_pos = s.ball.pos
+
+        # trace(s.car.pos.dot(UP))
+        # trace(s.ball.pos.dot(UP))
+        # if car.pos.y < ball.pos.y:
+        out = [0]*8
+        vertical_to_ball = dot(target_pos - s.car.pos, UP)
+        if s.car.on_ground:
+            WAIT_ON_GROUND = 0.40 # Wait a bit to stabilize on the ground
+            if s.time - self.last_time_in_air > WAIT_ON_GROUND:
+                if s.time - self.last_time_of_ground_non_jump > 0.5:  # avoid holding jump (note: delays jumping by one frame)
+                    self.last_time_of_ground_non_jump = s.time
+                else:
+                    out[OUT_VEC_JUMP] = 1
+            else:
+                # Drive to ball
+                is_forward = dot(s.car.forward, normalize(target_pos - s.car.pos))
+                out[OUT_VEC_THROTTLE] = 6*is_forward
+                if is_forward > 0.88: out[OUT_VEC_BOOST] = 1
+                out[OUT_VEC_STEER] = get_steer_towards(s, target_pos)
+        else:
+            out[OUT_VEC_THROTTLE] = 1  # recovery from turtling
+            if s.car.double_jumped:
+                # pass
+                if s.time - self.last_time_of_double_jump > 0.5:  # wait for the flip to mostly complete
+                    (
+                        out[OUT_VEC_PITCH],
+                        out[OUT_VEC_YAW],
+                        out[OUT_VEC_ROLL],
+                    ) = get_pitch_yaw_roll(s, z0(normalize(target_pos - s.car.pos)))
+            else:
+                WAIT_ALTITUDE = 0.1
+                if s.time - self.last_time_on_ground > WAIT_ALTITUDE:  # Wait for the car to have some altitude
+                    (
+                        out[OUT_VEC_PITCH],
+                        out[OUT_VEC_YAW],
+                        out[OUT_VEC_ROLL],
+                    ) = flip_in_direction(s, target_pos - s.car.pos)
+                    out[OUT_VEC_JUMP] = 1
+                    self.last_time_of_double_jump = s.time
+                elif s.time - self.last_time_on_ground < 0.5*WAIT_ALTITUDE:
+                    out[OUT_VEC_JUMP] = 1
+
+                # return [
+                #     0,  # fThrottle
+                #     0,  # fSteer
+                #     pitch,  # fPitch
+                #     yaw,  # fYaw
+                #     roll,  # fRoll
+                #     1,  # bJump
+                #     0,  # bBoost
+                #     0,  # bHandbrake
+                # ]
+        trace(out[OUT_VEC_THROTTLE])
+        self.jumped_last_frame = out[OUT_VEC_JUMP]
+        return out
 
 class AirStabilizerTowardsBall(StudentAgent):
     def __init__(self):
@@ -279,7 +377,7 @@ class AirStabilizerTowardsOwnGoal(StudentAgent):
     def __init__(self):
         self.jumped_last_frame = False
     def get_output_vector(self, s):
-        target_pos = s.own_goal_center
+        target_pos = (s.own_goal_center + s.ball.pos) / 2.
         should_jump = s.car.on_ground and not self.jumped_last_frame
         self.jumped_last_frame = should_jump
         pitch, yaw, roll = get_pitch_yaw_roll(s, normalize(target_pos - s.car.pos))
@@ -317,7 +415,7 @@ class CompositeStudent(StudentAgent):
         self.hit_ball_into_goal = InterceptBallTowardsEnemyGoal()
 
     def get_sub_student(self, s):
-        if not s.car.on_ground or dot(s.car.pos, UP) > 3*BALL_RADIUS:
+        if not s.car.on_ground or dot(s.car.pos, UP) > 3.0*BALL_RADIUS:
             return self.stablizer
         else:
             return self.hit_ball_into_goal
@@ -340,8 +438,8 @@ class InterceptBallWithVel(StudentAgent):
     def get_target_vel(self, s, ball_state):
         return self.target_vel
     def get_output_vector(self, s):
-        trace(s.car.pos , view_box='game')
-        trace(s.ball.pos, view_box='game')
+        # trace(s.car.pos , view_box='game')
+        # trace(s.ball.pos, view_box='game')
 
         # trace(mag(s.ball.angular_vel * BALL_RADIUS), view_box='vel')
         # trace(mag(s.ball.vel), view_box='vel')
