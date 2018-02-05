@@ -1,5 +1,6 @@
-"""Naval Fate.
-A small script that forwards input to the injected bakkes_mod.
+"""BakkesMod REPL.
+A small script that forwards input to the injected bakkes_mod 
+which hosts a websocket server.
 
 Usage:
   bakkes_repl.py
@@ -42,7 +43,7 @@ async def main_loop():
 
 
 if __name__ == '__main__':
-    arguments = docopt(__doc__, version='Naval Fate 2.0')
+    arguments = docopt(__doc__, version='BakkesMod REPL 1.0')
     if arguments['--silent']:
         get_input = input
     else:
