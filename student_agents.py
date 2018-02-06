@@ -51,8 +51,8 @@ def stop_if_close(s, target_pos, r=1000):
 def get_steer_towards(s, target_pos):
     towards_target = target_pos - s.car.pos
     target_on_car_plane = np.array([
-        s.car.forward.dot(towards_target),
-        s.car.right.dot(towards_target),
+        dot(towards_target, s.car.forward),
+        dot(towards_target, s.car.right),
     ])
     angle = vec2angle(target_on_car_plane)
     steer = angle*2.0
@@ -241,20 +241,32 @@ def execute_intercept_plan(s, intercept_plan):
 
 
 def get_pitch_yaw_roll(s, forward, up=UP):
-    right = normalize(cross(forward, up))
-    up = normalize(cross(right, forward))
     car = s.car
-    is_up = dot(car.up, up)
-    roll = -dot(cross(car.up, up), car.forward)
-    yaw = dot(cross(car.forward, forward), car.up)
-    pitch = dot(cross(car.forward, forward), -car.right)
+    forward = normalize(forward)
+    desired_facing_angular_vel = -cross(car.forward, forward)
+    desired_up_angular_vel = -cross(car.up, up)
+
+    pitch = dot(desired_facing_angular_vel, car.right)
+    yaw = -dot(desired_facing_angular_vel, car.up)
+    roll = dot(desired_up_angular_vel, car.forward)
+
+
+
+    pitch_vel =  dot(car.angular_vel, car.right)
+    yaw_vel   = -dot(car.angular_vel, car.up)
+    roll_vel  =  dot(car.angular_vel, car.forward)
+
+    # avoid getting stuck in directly-opposite states
+    if abs(roll_vel) < .3 and dot(car.up, up) < -.98 and dot(car.forward, forward) > .8:
+        roll = 1.0
+    # TODO: do this for pitch too. (yaw not required)
+    # trace(dot(car.up, up))
+    # trace(roll_vel)
+    # trace(roll)
 
     # PID control to stop overshooting.
-    roll_vel  = dot(car.angular_vel, car.forward)
-    yaw_vel   = dot(car.angular_vel, car.up)
-    pitch_vel = dot(car.angular_vel, car.right)
     roll  = 3*roll  + 0.25*roll_vel
-    yaw   = 3*yaw   - 0.80*yaw_vel
+    yaw   = 3*yaw   + 0.75*yaw_vel
     pitch = 3*pitch + 0.55*pitch_vel
 
     # only start adjusting roll once we're roughly facing the right way
@@ -339,7 +351,7 @@ class FlipTowardsBall(StudentAgent):
                         out[OUT_VEC_PITCH],
                         out[OUT_VEC_YAW],
                         out[OUT_VEC_ROLL],
-                    ) = get_pitch_yaw_roll(s, z0(normalize(target_pos - s.car.pos)))
+                    ) = get_pitch_yaw_roll(s, z0(dir_to_target))
             else:
                 WAIT_ALTITUDE = 0.1
                 if s.time - self.last_time_on_ground > WAIT_ALTITUDE:  # Wait for the car to have some altitude
@@ -353,17 +365,6 @@ class FlipTowardsBall(StudentAgent):
                 elif s.time - self.last_time_on_ground < 0.5*WAIT_ALTITUDE:
                     out[OUT_VEC_JUMP] = 1
 
-                # return [
-                #     0,  # fThrottle
-                #     0,  # fSteer
-                #     pitch,  # fPitch
-                #     yaw,  # fYaw
-                #     roll,  # fRoll
-                #     1,  # bJump
-                #     0,  # bBoost
-                #     0,  # bHandbrake
-                # ]
-        trace(out[OUT_VEC_THROTTLE])
         self.jumped_last_frame = out[OUT_VEC_JUMP]
         return out
 
@@ -372,7 +373,13 @@ class AirStabilizerTowardsBall(StudentAgent):
         pass
     def get_output_vector(self, s):
         target_pos = s.ball.pos
-        return get_pitch_yaw_roll(s, normalize(target_pos - s.car.pos))
+        out = [0]*8
+        (
+            out[OUT_VEC_PITCH],
+            out[OUT_VEC_YAW],
+            out[OUT_VEC_ROLL],
+        ) = get_pitch_yaw_roll(s, normalize(target_pos - s.car.pos))
+        return out
 class AirStabilizerTowardsOwnGoal(StudentAgent):
     def __init__(self):
         self.jumped_last_frame = False

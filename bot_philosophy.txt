@@ -18,3 +18,5 @@ Try to build things stateless at first (avoid carrying over data between frames)
 That should allow for more simple composition of strategies.
 
 Every now and then, declare tab bankrupcy. Close other editor tabs than the one you need to work on right now.
+
+Before you try make the solution, confirm the problem.
