@@ -124,20 +124,20 @@ class Agent:
             return [0] * 8  # No action
         replay_duration = self.history.end_time - self.history.start_time
 
-        self.slicer.set_min_max(0, 2.0)
 
+        self.slicer.set_min_max(0, 20.0)
 
-        # make the player float
-        if not hasattr(self, 'frames_until_bakkes_air'):
-            self.frames_until_bakkes_air = 1
-        if self.frames_until_bakkes_air == 0:
-            bakkes.rcon(';'.join([
-                'player location -300 0 250',
-                'player velocity -0 0 10',
-            ]))
-            self.frames_until_bakkes_air = 2
-        else:
-            self.frames_until_bakkes_air -= 1
+        # # make the player float
+        # if not hasattr(self, 'frames_until_bakkes_air'):
+        #     self.frames_until_bakkes_air = 1
+        # if self.frames_until_bakkes_air == 0:
+        #     bakkes.rcon(';'.join([
+        #         'player location -300 0 250',
+        #         'player velocity -0 0 10',
+        #     ]))
+        #     self.frames_until_bakkes_air = 2
+        # else:
+        #     self.frames_until_bakkes_air -= 1
 
         time_in_history = time - self.mimic_start_time + self.history.start_time
         if time - self.mimic_start_time > replay_duration or self.should_reset_mimic:
@@ -158,14 +158,14 @@ class Agent:
 
                 # 'player location -3000 3000 20',
                 # 'player location -200 200 200',
-                # 'player location -200 200 20',
-                # 'player velocity 0 0 0',
-                # 'player rotation 0 -10000 0',
+                'player location -200 200 20',
+                'player velocity 0 0 0',
+                'player rotation 0 0 0',
                 'player angularvelocity 0 0 0',
                 # 'player rotation 0 0 50000',
                 # 'player rotation 0 0 32800',
                 # 'player rotation 25000 -10 -10 ',
-                'player rotation {} {} {}'.format(*rand3),
+                # 'player rotation {} {} {}'.format(*rand3),
                 # 'player rotation -49000 0 0',
                 # 'player rotation -50000 0 0',
                 # 'player rotation -9800000 0 0',

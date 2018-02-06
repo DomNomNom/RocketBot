@@ -302,6 +302,15 @@ def flip_in_direction(s, target_direction):
     # pitch = 0
     return (pitch, yaw, roll)
 
+def flip_towards(s, target_pos):
+    '''
+    Takes into account velocity
+    '''
+    towards_target_dir = normalize(target_pos - s.car.pos)
+    # desired_speed =
+    desired_vel = towards_target_dir * min(MAX_CAR_SPEED, s.car.speed + FLIP_SPEED_CHANGE*1.0)
+    acceleration_dir = normalize(desired_vel - s.car.vel)
+    return flip_in_direction(s, acceleration_dir)
 
 
 ############################################################
@@ -317,17 +326,30 @@ class FlipTowardsBall(StudentAgent):
         self.last_time_in_air = 0.0
         self.last_time_on_ground = 0.0
 
+    def get_target_pos(self, s):
+        return s.ball.pos
+
     def get_output_vector(self, s):
 
         if s.car.on_ground: self.last_time_on_ground = s.time
         else:               self.last_time_in_air    = s.time
 
-        target_pos = s.ball.pos
+        target_pos = self.get_target_pos(s)
+        # target_pos = s.ball.pos
 
-        # trace(s.car.pos.dot(UP))
-        # trace(s.ball.pos.dot(UP))
-        # if car.pos.y < ball.pos.y:
         out = [0]*8
+        dir_to_target = normalize(target_pos - s.car.pos)
+        # trace(mag(z0(s.car.vel)))
+
+        # is_forward = dot(s.car.forward, dir_to_target)
+        # trace(is_forward)
+        # out[OUT_VEC_THROTTLE] = 6*is_forward
+        # if dot(s.car.up, UP) < .5:
+        #     out[OUT_VEC_THROTTLE] = 1
+        # # if is_forward > 0.88: out[OUT_VEC_BOOST] = 1
+        # out[OUT_VEC_STEER] = get_steer_towards(s, target_pos)
+        # return out
+
         vertical_to_ball = dot(target_pos - s.car.pos, UP)
         if s.car.on_ground:
             WAIT_ON_GROUND = 0.40 # Wait a bit to stabilize on the ground
@@ -338,7 +360,7 @@ class FlipTowardsBall(StudentAgent):
                     out[OUT_VEC_JUMP] = 1
             else:
                 # Drive to ball
-                is_forward = dot(s.car.forward, normalize(target_pos - s.car.pos))
+                is_forward = dot(s.car.forward, dir_to_target)
                 out[OUT_VEC_THROTTLE] = 6*is_forward
                 if is_forward > 0.88: out[OUT_VEC_BOOST] = 1
                 out[OUT_VEC_STEER] = get_steer_towards(s, target_pos)
@@ -359,7 +381,7 @@ class FlipTowardsBall(StudentAgent):
                         out[OUT_VEC_PITCH],
                         out[OUT_VEC_YAW],
                         out[OUT_VEC_ROLL],
-                    ) = flip_in_direction(s, target_pos - s.car.pos)
+                    ) = flip_towards(s, target_pos) #flip_in_direction(s, target_pos - s.car.pos)
                     out[OUT_VEC_JUMP] = 1
                     self.last_time_of_double_jump = s.time
                 elif s.time - self.last_time_on_ground < 0.5*WAIT_ALTITUDE:
