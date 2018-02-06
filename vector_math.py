@@ -134,5 +134,5 @@ def to_rotation_matrix(pitch, yaw, roll):
              [0, cosx, sinx],
              [0, -sinx, cosx]])
 
-    return reduce(np.dot, [mat_yaw, mat_roll, mat_pitch])
+    return reduce(np.dot, [mat_yaw, mat_pitch, mat_roll])
 
