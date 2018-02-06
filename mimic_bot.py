@@ -157,8 +157,8 @@ class Agent:
                 'ball angularvelocity 0 0 0',
 
                 # 'player location -3000 3000 20',
-                # 'player location -200 200 200',
-                'player location -200 200 20',
+                'player location -200 200 200',
+                # 'player location -200 200 20',
                 'player velocity 0 0 0',
                 'player rotation 0 0 0',
                 'player angularvelocity 0 0 0',

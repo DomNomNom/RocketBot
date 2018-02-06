@@ -15,8 +15,8 @@ import marvin_atbab
 from marvin_atbab import BALL_STATE_POS, BALL_STATE_VEL, BALL_STATE_ANGULAR_VEL, BALL_STATE_TIME
 import time
 
-TURN_RADIUS_WHILE_BOOSTING = 1100
-TURN_RADIUS_WHILE_NON_BOOSTING = 550
+
+# Note: the variable `s` always refers to a EasyGameState here.
 
 class StudentAgent(object):
     def get_output_vector(self, s):  # s - EasyGameState
@@ -185,6 +185,14 @@ def plan_from_ball_state(s, ball_state, target_vel):
         target_vel=target_vel,
     )
 
+def get_ball_path(s, prediction_duration):
+    return marvin_atbab.predict_b(
+        s.ball.pos,
+        s.ball.vel,
+        s.ball.angular_vel,
+        prediction_duration,
+    )
+
 def plan_score(plan):
     return -abs(plan.start_time + plan.tangent_path_duration - plan.ball_time) #- 0.9* plan.tangent_path_duration
 def get_ball_intercept_plan(s, get_target_vel, previous_plan=None):
@@ -193,7 +201,7 @@ def get_ball_intercept_plan(s, get_target_vel, previous_plan=None):
     intercept_time = 0
     time_0 = time.clock()
     ball_predict_duration = 4.0
-    ball_path = marvin_atbab.predict_b(s.ball.pos, s.ball.vel, s.ball.angular_vel, ball_predict_duration)
+    ball_path = get_ball_path(s, ball_predict_duration)
     time_1 = time.clock()
 
     ball_path_samples = []
@@ -312,6 +320,45 @@ def flip_towards(s, target_pos):
     acceleration_dir = normalize(desired_vel - s.car.vel)
     return flip_in_direction(s, acceleration_dir)
 
+def useful_target_pos_v1(s):
+    '''
+    Returns a position that seems good to go towards right now.
+    '''
+
+    prediction_duration = 0.2
+    ball_path = get_ball_path(s, prediction_duration)
+    predicted_ball = ball_path[-1]
+    predicted_ball_pos = predicted_ball[BALL_STATE_POS]
+    target_ball_pos = s.enemy_goal_center
+    # predicted_ball_pos = s.ball.pos
+    # predicted_ball_vel = predicted_ball[BALL_STATE_VEL]
+    to_goal_dir = normalize(target_ball_pos - predicted_ball_pos)
+
+    # DONE: predict the ball by some small amount.
+    # DONE: avoid ball when coming back
+    # TODO: hit at an angle to change ball velocity
+    target_pos = predicted_ball_pos - 0.8 * BALL_RADIUS * to_goal_dir
+
+    avoid = 0
+    if dist(s.car.pos, target_ball_pos) < dist(predicted_ball_pos, target_ball_pos):
+        avoid = 1
+        # TODO: make sure options are in bounds
+        avoid_back_ball_radius = BALL_RADIUS * 5.0
+        options = [
+            predicted_ball_pos + avoid_back_ball_radius * normalize(Vec3( 1, -s.enemy_goal_dir, 0)),
+            predicted_ball_pos + avoid_back_ball_radius * normalize(Vec3(-1, -s.enemy_goal_dir, 0)),
+        ]
+        best_avoid_option = min(options, key=lambda avoid_ball_pos: dist(s.car.pos, avoid_ball_pos))
+        # TODO: factor in current velocity maybe
+        target_pos = best_avoid_option
+
+    # trace(avoid)
+    # trace(s.ball.pos, view_box='game')
+    # trace(s.car.pos, view_box='game')
+    # trace(predicted_ball_pos, view_box='game')
+    # trace(s.enemy_goal_center, view_box='game')
+    # trace(s.own_goal_center, view_box='game')
+    return target_pos
 
 ############################################################
 # pure functions above.
@@ -327,7 +374,8 @@ class FlipTowardsBall(StudentAgent):
         self.last_time_on_ground = 0.0
 
     def get_target_pos(self, s):
-        return s.ball.pos
+        # return s.ball.pos
+        return useful_target_pos_v1(s)
 
     def get_output_vector(self, s):
 
@@ -341,14 +389,6 @@ class FlipTowardsBall(StudentAgent):
         dir_to_target = normalize(target_pos - s.car.pos)
         # trace(mag(z0(s.car.vel)))
 
-        # is_forward = dot(s.car.forward, dir_to_target)
-        # trace(is_forward)
-        # out[OUT_VEC_THROTTLE] = 6*is_forward
-        # if dot(s.car.up, UP) < .5:
-        #     out[OUT_VEC_THROTTLE] = 1
-        # # if is_forward > 0.88: out[OUT_VEC_BOOST] = 1
-        # out[OUT_VEC_STEER] = get_steer_towards(s, target_pos)
-        # return out
 
         vertical_to_ball = dot(target_pos - s.car.pos, UP)
         if s.car.on_ground:
@@ -509,19 +549,19 @@ class TheoreticalPhysicist(StudentAgent):
     ''' Just sits in an armchair and tries to predict the ball and figure out how good the prediction is '''
     def __init__(self):
         self.predictions = deque()
-        self.predition_duration = 0.5 # s
+        self.prediction_duration = 0.5 # s
 
     def get_output_vector(self, s):
-        ball_path = marvin_atbab.predict_b(s.ball.pos, s.ball.vel, s.ball.angular_vel, self.predition_duration)
+        ball_path = marvin_atbab.predict_b(s.ball.pos, s.ball.vel, s.ball.angular_vel, self.prediction_duration)
         predicted_ball = Ball()
         prediction = ball_path[-2]
         predicted_ball.pos, predicted_ball.vel, predicted_ball.angular_vel, _ = prediction
 
         # trace(s.time)
         self.predictions.append((
-            s.time + self.predition_duration,
+            s.time + self.prediction_duration,
             predicted_ball,
-            # basic_physics.predict_ball(s.ball, self.predition_duration),
+            # basic_physics.predict_ball(s.ball, self.prediction_duration),
         ))
 
 
