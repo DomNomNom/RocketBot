@@ -258,8 +258,6 @@ def get_pitch_yaw_roll(s, forward, up=UP):
     yaw = -dot(desired_facing_angular_vel, car.up)
     roll = dot(desired_up_angular_vel, car.forward)
 
-
-
     pitch_vel =  dot(car.angular_vel, car.right)
     yaw_vel   = -dot(car.angular_vel, car.up)
     roll_vel  =  dot(car.angular_vel, car.forward)
@@ -325,19 +323,26 @@ def useful_target_pos_v1(s):
     Returns a position that seems good to go towards right now.
     '''
 
-    prediction_duration = 0.2
+    # TODO: maybe adjust this as we get closer/further away
+    underestimated_time_to_ball = dist(s.car.pos, s.ball.pos) / (2.0 * MAX_CAR_SPEED)
+    prediction_duration = clamp(underestimated_time_to_ball, 0.02, 2.0) #0.2
+    # prediction_duration = 0.2
     ball_path = get_ball_path(s, prediction_duration)
     predicted_ball = ball_path[-1]
     predicted_ball_pos = predicted_ball[BALL_STATE_POS]
+    predicted_ball_vel = predicted_ball[BALL_STATE_VEL]
     target_ball_pos = s.enemy_goal_center
-    # predicted_ball_pos = s.ball.pos
-    # predicted_ball_vel = predicted_ball[BALL_STATE_VEL]
-    to_goal_dir = normalize(target_ball_pos - predicted_ball_pos)
+    to_goal_dir = normalize(z0(target_ball_pos - predicted_ball_pos))
 
     # DONE: predict the ball by some small amount.
     # DONE: avoid ball when coming back
-    # TODO: hit at an angle to change ball velocity
-    target_pos = predicted_ball_pos - 0.8 * BALL_RADIUS * to_goal_dir
+    # DONE: hit at an angle to change ball velocity
+    desired_ball_speed = MAX_CAR_SPEED
+    desired_ball_vel = MAX_CAR_SPEED * to_goal_dir
+    desired_ball_vel_change = desired_ball_vel - predicted_ball_vel
+    ball_hit_offset = -0.8 * BALL_RADIUS * normalize(desired_ball_vel)
+    # ball_hit_offset = -0.8 * BALL_RADIUS * to_goal_dir
+    target_pos = predicted_ball_pos + ball_hit_offset
 
     avoid = 0
     if dist(s.car.pos, target_ball_pos) < dist(predicted_ball_pos, target_ball_pos):
@@ -353,17 +358,25 @@ def useful_target_pos_v1(s):
         target_pos = best_avoid_option
 
     # trace(avoid)
+    # trace(predicted_ball_pos, view_box='game')
     # trace(s.ball.pos, view_box='game')
     # trace(s.car.pos, view_box='game')
-    # trace(predicted_ball_pos, view_box='game')
     # trace(s.enemy_goal_center, view_box='game')
     # trace(s.own_goal_center, view_box='game')
+    # trace(100 * -normalize(desired_ball_vel_change), view_box='game')
+    # trace(100 * -to_goal_dir, view_box='game')
+    trace(underestimated_time_to_ball)
+
     return target_pos
+
+
 
 ############################################################
 # pure functions above.
 # stateful classes below.
 ############################################################
+
+
 
 class FlipTowardsBall(StudentAgent):
     def __init__(self):

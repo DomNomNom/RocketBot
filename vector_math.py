@@ -45,7 +45,7 @@ def is_close(v0, v1):
     return all(np.isclose(v0, v1))
 def xy_only(vec3):
     return vec3[:2]
-def z0(vec2):
+def z0(vec2):  # sets the z axis of the vector to zero.
     return Vec3(vec2[0], vec2[1], 0.0)
 ###### Angle and rotation stuff ####
 

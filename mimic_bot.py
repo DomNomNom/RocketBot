@@ -125,7 +125,6 @@ class Agent:
         replay_duration = self.history.end_time - self.history.start_time
 
 
-        self.slicer.set_min_max(0, 20.0)
 
         # # make the player float
         # if not hasattr(self, 'frames_until_bakkes_air'):
@@ -138,6 +137,8 @@ class Agent:
         #     self.frames_until_bakkes_air = 2
         # else:
         #     self.frames_until_bakkes_air -= 1
+
+        self.slicer.set_min_max(0, 50.0)
 
         time_in_history = time - self.mimic_start_time + self.history.start_time
         if time - self.mimic_start_time > replay_duration or self.should_reset_mimic:
@@ -153,7 +154,8 @@ class Agent:
             bakkes.rcon(';'.join([
                 # bakkes_reset_command,
                 'ball location 0 0 100',
-                'ball velocity -0 0 0',
+                # 'ball location -2000 2000 100',
+                'ball velocity 1000 0 0',
                 'ball angularvelocity 0 0 0',
 
                 # 'player location -3000 3000 20',
