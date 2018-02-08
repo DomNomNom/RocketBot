@@ -20,7 +20,7 @@ import time
 
 class StudentAgent(object):
     def get_output_vector(self, s):  # s - EasyGameState
-        return [0]*8
+        raise Exception('need to override get_output_vector()')
 
 def stop_if_close(s, target_pos, r=1000):
     if mag(s.car.pos - target_pos) > 1000:
@@ -59,19 +59,31 @@ def get_steer_towards(s, target_pos):
     return steer
 
 
-def drive_to_pos(s, target_pos):
+def drive_to_pos(s, target_pos, boost=True):
     steer = get_steer_towards(s, target_pos)
-    out_vec = [
+    out = [
         1,  # fThrottle
         steer,  # fSteer
         0,  # fPitch
         0,  # fYaw
         0,  # fRoll
         0,  # bJump
-        1,  # bBoost
+        boost,  # bBoost
         0,  # bHandbrake
     ]
-    return  out_vec
+    return out
+
+def drive_and_stop_at_pos(s, target_pos, boost=False):
+    out = drive_to_pos(s, target_pos, boost=boost)
+    if dist(s.car.pos, target_pos) < 1000:
+        to_target = target_pos - s.car.pos
+        out[OUT_VEC_THROTTLE] = (
+            # PID
+            + 0.018 * dot(s.car.forward, target_pos - s.car.pos)
+            - 0.007 * dot(z0(s.car.vel), normalize(z0(to_target)))
+        )
+        out[OUT_VEC_BOOST] = False
+    return out
 
 def steer_and_speed(s, steer, target_speed):
     # TODO: speed adjustment
@@ -314,9 +326,35 @@ def flip_towards(s, target_pos):
     '''
     towards_target_dir = normalize(target_pos - s.car.pos)
     # desired_speed =
-    desired_vel = towards_target_dir * min(MAX_CAR_SPEED, s.car.speed + FLIP_SPEED_CHANGE*1.0)
+    desired_vel = towards_target_dir * min(MAX_CAR_SPEED*1.05, s.car.speed + FLIP_SPEED_CHANGE*1.0)
     acceleration_dir = normalize(desired_vel - s.car.vel)
     return flip_in_direction(s, acceleration_dir)
+
+def is_ball_backboard_rolling(s):
+    '''
+    returns true if the ball is rolling along a back wall towards a goal and shouldn't be touched right now.
+    '''
+    ball = s.car
+    goal_post_y = 1000
+    if abs(ball.pos[TO_ORANGE]) < 4100: return False  # must be near a back wall
+    if abs(ball.pos[TO_STATUE]) < 1000: return False  # must not be infront of goal
+    # if abs(ball.vel[TO_ORANGE]) > 2.0 * abs(ball.vel[TO_STATUE]): return False  # not going sideways enough
+
+    to_center_y = 1 if ball.pos[TO_STATUE] < 0 else -1
+    to_center_y_pos = ball.pos[TO_STATUE] * to_center_y
+    to_center_y_vel = ball.vel[TO_STATUE] * to_center_y  # positive to center
+    if to_center_y_vel <= 10.0:  # Wrong direction or Too slow
+        return False
+    outside_post_y_pos = -to_center_y * goal_post_y
+    ball_to_outside_post_y = to_center_y * outside_post_y_pos - to_center_y_pos
+    eta_duration_to_post = ball_to_outside_post_y / to_center_y_vel
+    # trace(eta_duration_to_post)
+    # trace(ball_to_outside_post_y)
+    if eta_duration_to_post > 4.0:  # too slow.
+        return False
+    if eta_duration_to_post < 0.0:  # almost there, start driving towards the ball now
+        return False
+    return True
 
 def useful_target_pos_v1(s):
     '''
@@ -344,6 +382,7 @@ def useful_target_pos_v1(s):
     # ball_hit_offset = -0.8 * BALL_RADIUS * to_goal_dir
     target_pos = predicted_ball_pos + ball_hit_offset
 
+    # Avoid the ball when coming back
     avoid = 0
     if dist(s.car.pos, target_ball_pos) < dist(predicted_ball_pos, target_ball_pos):
         avoid = 1
@@ -357,6 +396,7 @@ def useful_target_pos_v1(s):
         # TODO: factor in current velocity maybe
         target_pos = best_avoid_option
 
+
     # trace(avoid)
     # trace(predicted_ball_pos, view_box='game')
     # trace(s.ball.pos, view_box='game')
@@ -365,10 +405,9 @@ def useful_target_pos_v1(s):
     # trace(s.own_goal_center, view_box='game')
     # trace(100 * -normalize(desired_ball_vel_change), view_box='game')
     # trace(100 * -to_goal_dir, view_box='game')
-    trace(underestimated_time_to_ball)
+    # trace(underestimated_time_to_ball)
 
     return target_pos
-
 
 
 ############################################################
@@ -376,6 +415,75 @@ def useful_target_pos_v1(s):
 # stateful classes below.
 ############################################################
 
+
+
+
+class NomBot_v1(StudentAgent):
+    def __init__(self):
+        self.normal_strategy = FlipTowardsBall()
+        self.kickoff_strategy = KickoffSpecialist()
+        self.offdefence_strategy = OffenderDefenderWaiter()
+    def get_output_vector(self, s):
+
+        if s.is_kickoff_time:
+            return self.kickoff_strategy.get_output_vector(s)
+
+        # Special situations
+        backrolling = is_ball_backboard_rolling(s)
+        if backrolling:
+            return self.offdefence_strategy.get_output_vector(s)
+        return self.normal_strategy.get_output_vector(s)
+
+class OffenderDefenderWaiter(StudentAgent):
+    ''' Tries to wait at a useful spot depending on whether we're on offence to defence '''
+    def __init__(self):
+        pass
+    def get_output_vector(self, s):
+        if dot(s.ball.pos, s.enemy_goal_center) > 0:
+            # offence
+            target_pos = 0.79*z0(s.enemy_goal_center)  # be on the little boost infront of goal
+            target_pos = Vec3(650.0, 4200.0, 0.0) * get_quadrant(s.ball.pos)
+        else:
+            # defence
+            target_pos = z0(s.own_goal_center)
+
+        return drive_and_stop_at_pos(s, target_pos, boost=True)
+
+class KickoffSpecialist(StudentAgent):
+    def __init__(self):
+        self.last_time_on_ground = 0.0
+        self.last_time_of_double_jump = 0.0
+    def get_output_vector(self, s):
+        if s.car.on_ground:
+            self.last_time_on_ground = s.time
+        if dist(s.car.pos, s.ball.pos) > 1100:
+            return drive_to_pos(s, s.ball.pos)
+
+        # Jump time
+        out = [0]*8
+        target_pos = s.ball.pos
+        dir_to_target = normalize(target_pos - s.car.pos)
+
+        if s.car.double_jumped:
+            if s.time - self.last_time_of_double_jump > 0.5:  # wait for the flip to mostly complete
+                (
+                    out[OUT_VEC_PITCH],
+                    out[OUT_VEC_YAW],
+                    out[OUT_VEC_ROLL],
+                ) = get_pitch_yaw_roll(s, z0(dir_to_target))
+        else:
+            WAIT_ALTITUDE = 0.05
+            if s.time - self.last_time_on_ground > WAIT_ALTITUDE:  # Wait for the car to have some altitude
+                (
+                    out[OUT_VEC_PITCH],
+                    out[OUT_VEC_YAW],
+                    out[OUT_VEC_ROLL],
+                ) = flip_towards(s, target_pos) #flip_in_direction(s, target_pos - s.car.pos)
+                out[OUT_VEC_JUMP] = 1
+                self.last_time_of_double_jump = s.time
+            elif s.time - self.last_time_on_ground < 0.5*WAIT_ALTITUDE:
+                out[OUT_VEC_JUMP] = 1
+        return out
 
 
 class FlipTowardsBall(StudentAgent):
@@ -395,12 +503,9 @@ class FlipTowardsBall(StudentAgent):
         if s.car.on_ground: self.last_time_on_ground = s.time
         else:               self.last_time_in_air    = s.time
 
-        target_pos = self.get_target_pos(s)
-        # target_pos = s.ball.pos
-
         out = [0]*8
+        target_pos = self.get_target_pos(s)
         dir_to_target = normalize(target_pos - s.car.pos)
-        # trace(mag(z0(s.car.vel)))
 
 
         vertical_to_ball = dot(target_pos - s.car.pos, UP)
@@ -420,8 +525,7 @@ class FlipTowardsBall(StudentAgent):
         else:
             out[OUT_VEC_THROTTLE] = 1  # recovery from turtling
             if s.car.double_jumped:
-                # pass
-                if s.time - self.last_time_of_double_jump > 0.5:  # wait for the flip to mostly complete
+                if s.time - self.last_time_of_double_jump > 0.47:  # wait for the flip to mostly complete
                     (
                         out[OUT_VEC_PITCH],
                         out[OUT_VEC_YAW],
@@ -591,8 +695,8 @@ class TheoreticalPhysicist(StudentAgent):
                 diff_vel,
             ])
             # trace(error)
-            trace(diff_pos[-1])
-            trace(diff_vel[-1])
+            # trace(diff_pos[-1])
+            # trace(diff_vel[-1])
 
         return [0]*8
 

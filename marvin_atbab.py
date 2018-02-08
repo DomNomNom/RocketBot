@@ -2,12 +2,7 @@
 # Not perfect but will do for now.
 
 import math, numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import time as timer
-# from quicktracer import trace
 
-from controller_input import controller
 
 # Indecies into the output tuples of predict_b.
 BALL_STATE_POS = 0
@@ -15,102 +10,6 @@ BALL_STATE_VEL = 1
 BALL_STATE_ANGULAR_VEL = 2
 BALL_STATE_TIME = 3
 
-
-class Agent:
-    def __init__(self, name, team, indep):
-        0
-    def get_output_vector(self, game):
-        ball = game.gameball
-        time = game.gameInfo.TimeSeconds
-        show(ball,time)
-        return (
-            round(controller.fThrottle),
-            round(controller.fSteer),
-            round(controller.fPitch),
-            round(controller.fYaw),
-            round(controller.fRoll),
-            round(controller.bJump),
-            round(controller.bBoost),
-            round(controller.bHandbrake),
-        )
-        return [c==3, 0.0, 0.0, 0.0, 0.0, 0, 0, 0]
-
-# class agent: # in case v2 was used instead of v3
-#     def __init__(self, team):
-#         0
-#     def get_output_vector(self, sharedValue):
-#         game = sharedValue.GameTickPacket
-#         ball = game.gameball
-#         time = game.gameInfo.TimeSeconds
-#         show(ball,time)
-#         return [16383, 16383, 0, 0, 0, 0<c<4, 0]
-
-ptime=delta_t=0
-c=0
-
-def show(ball,time):
-    global c,gt,pr,iloc,ivel,iangvel,t0
-
-    # c is a counter,
-    # gt is the ground truth, pr is the prediction
-    # iloc, ivel, t0 represent the initial state the ball starts in
-    # loc, vel, represent the current state of the ball
-    # ploc, pvel, represent the predicted state
-
-    global ptime,delta_t
-
-    delta_t = time - ptime
-
-    ptime=time
-
-    if c==5:
-        iloc,ivel,iangvel,t0=a3(ball.Location),a3(ball.Velocity),a3(ball.AngularVelocity),time
-        gt,pr=[],[]
-        gt.append([iloc,ivel,iangvel,0])
-        print(gt)
-
-    if c>5:
-        loc,vel,angvel = a3(ball.Location),a3(ball.Velocity),a3(ball.AngularVelocity)
-        gt.append([loc,vel,angvel,delta_t])
-        dt = time - t0
-
-    if c>=450:
-        ploc,pvel,pangvel = iloc,ivel,iangvel
-
-        t0 = timer.time()
-
-        pr = predict_b(ploc,pvel,pangvel,dt)
-
-        print('generated prediction in',timer.time()-t0,'seconds.')
-
-        pr.insert(0,gt[0])
-
-        fig = plt.figure()
-        ap = fig.gca(projection='3d')
-
-        p = 0  # 0 to graph location, 1 for velocity, 2 for angular velocity
-
-        if p == 0 :
-            ap.set_xlim3d(-5500,5500)
-            ap.set_ylim3d(-5500,5500)
-            ap.set_zlim3d(-100,2500)
-
-        ap.plot([i[p][0] for i in gt],[i[p][1] for i in gt],[i[p][2] for i in gt], label="Ground Truth")
-        ap.plot([i[p][0] for i in pr],[i[p][1] for i in pr],[i[p][2] for i in pr], label="Predicted")
-
-        error=0
-        # for i in range(len(pr)): # calculating the average error
-        #     error=d3(gt[i][p],pr[i][p])+error
-        for gti, pri in zip(gt, pr):
-            error += d3(gti[p], pri[p])
-        error/=len(pr)+1
-        print(error,delta_t,pr[-1][0],gt[-1][0])
-
-        plt.legend()
-        plt.show()
-        plt.pause(300)
-
-    c+=1
 
 def rotate2D(x,y,ang):
     x2 = x*math.cos(ang) - y*math.sin(ang)
@@ -214,6 +113,7 @@ def predict_b(L0,V0,aV0,dt):
         '''
             Note: this is a hack.
             returns None if the rolling model is not applicable.
+            returns the new (location, velocity, angular_velocity) tuple
         '''
         if L0[-1] > R * 1.2: return None
         if abs(V0[-1]) > 2000: return None
@@ -221,6 +121,7 @@ def predict_b(L0,V0,aV0,dt):
         nL = L0 + V0*dt*1.0
         nV = a3([V0[0], V0[1], 0])
         return (nL, V0, aV0)
+
     def LVt(L0,V0,aV0,dt):
         roll_predict = rolling_model(L0, V0, aV0, dt)
         if roll_predict is not None:

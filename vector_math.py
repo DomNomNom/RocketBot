@@ -17,9 +17,11 @@ tau = 2*np.pi
 DEGREES_TO_RADIANS = tau / 360.0
 RADIANS_TO_DEGREES = 360.0 / tau
 
-
 UP = np.array([0.0, 0.0, 1.0])
 UP.flags.writeable = False
+
+
+# Usual vector functions
 cross = np.cross
 sqrt = np.sqrt
 equal = np.array_equal
@@ -43,10 +45,19 @@ def lerp(v0, v1, t):  # linear interpolation
   return (1 - t) * v0 + t * v1;
 def is_close(v0, v1):
     return all(np.isclose(v0, v1))
+
+# less common stuff
 def xy_only(vec3):
     return vec3[:2]
 def z0(vec2):  # sets the z axis of the vector to zero.
     return Vec3(vec2[0], vec2[1], 0.0)
+def get_quadrant(vec3):
+    return Vec3(
+        1 if vec3[0] >= 0 else -1,
+        1 if vec3[1] >= 0 else -1,
+        1 if vec3[2] >= 0 else -1,
+    )
+
 ###### Angle and rotation stuff ####
 
 def vec2angle(vec2):

@@ -23,6 +23,7 @@ import bakkes
 from controller_input import controller
 import ctype_utils
 import slicer
+import student_agents
 
 imp.reload(ctype_utils)
 imp.reload(historian)
@@ -108,7 +109,7 @@ class Agent:
             self.clear_recording(time)
             self.state = STATE_RECORD
         if self.state == STATE_RECORD and not controller.hat_toggle_west:  # record -> mimic
-            self.history.save()
+            # self.history.save()  # TODO: make useful again
             self.mimic_start_time = -1
             print('recording finished. ')
             self.state = STATE_MIMIC
@@ -155,18 +156,20 @@ class Agent:
                 # bakkes_reset_command,
                 'ball location 0 0 100',
                 # 'ball location -2000 2000 100',
-                'ball velocity 1000 0 0',
+                'ball location 3000 3000 100',
+                'ball velocity 0 0 0',
                 'ball angularvelocity 0 0 0',
 
                 # 'player location -3000 3000 20',
-                'player location -200 200 200',
+                # 'player location -200 200 200',
+                'player location 3100 2000 10',
                 # 'player location -200 200 20',
                 'player velocity 0 0 0',
                 'player rotation 0 0 0',
                 'player angularvelocity 0 0 0',
                 # 'player rotation 0 0 50000',
                 # 'player rotation 0 0 32800',
-                # 'player rotation 25000 -10 -10 ',
+                'player rotation 0 15800 0 ',
                 # 'player rotation {} {} {}'.format(*rand3),
                 # 'player rotation -49000 0 0',
                 # 'player rotation -50000 0 0',
@@ -195,8 +198,9 @@ class Agent:
 
         s = EasyGameState(game_tick_packet, self.team, self.index)
         # trace(s.car.on_ground)
-        trace(s.car.right[-1])
-        trace(s.car.right[:-1])
+        # student_agents.is_ball_backboard_rolling(s)
+        trace(s.car.pos[0])
+        trace(s.car.pos[1])
 
         time = time - self.record_start_time
 

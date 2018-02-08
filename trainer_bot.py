@@ -33,7 +33,9 @@ class Agent(mimic_bot.Agent):
         # self.student = student_agents.InterceptBallTowardsEnemyGoal()
         # self.student = student_agents.AirStabilizerTowardsBall()
         # self.student = student_agents.CompositeStudent()
-        self.student = student_agents.FlipTowardsBall()
+        # self.student = student_agents.FlipTowardsBall()
+        # self.student = student_agents.OffenderDefenderWaiter()
+        self.student = student_agents.NomBot_v1()
 
     # Override
     def decide_on_action(self, action_dict, time_in_history, game_tick_packet):

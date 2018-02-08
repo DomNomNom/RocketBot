@@ -5,4 +5,4 @@ if __name__ == '__main__':
 
 import student_agents
 
-Agent = graduate_student_into_agent(student_agents.CompositeStudent)
+Agent = graduate_student_into_agent(student_agents.NomBot_v1)

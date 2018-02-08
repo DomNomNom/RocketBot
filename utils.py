@@ -11,11 +11,17 @@ UP.flags.writeable = False
 STEER_R = +1
 STEER_L = -1
 
+# Indexes into pos/vel
+TO_STATUE = 0  # There is a statue outside the playing fields. The direction the default observer cam faces.
+TO_ORANGE = 1   # towards
+TO_CEILING = 2  # UP is already taken
 
+# Physics constants
 BALL_RADIUS = 92.
 MAX_CAR_SPEED = 2300.005
 FLIP_SPEED_CHANGE = 500.0  # TODO: refine constant
 
+# indexes into the output vector
 OUT_VEC_THROTTLE = 0
 OUT_VEC_STEER = 1
 OUT_VEC_PITCH = 2
@@ -89,6 +95,20 @@ class EasyGameState(object):
         self.enemy_goal_dir = 1.0 if team==0 else -1.0  # Which side of the Y axis the goal is.
         self.enemy_goal_center = Vec3(0,  self.enemy_goal_dir*5350, 200)
         self.own_goal_center   = Vec3(0, -self.enemy_goal_dir*5350, 200)
+        self.is_kickoff_time = not game_tick_packet.gameInfo.bBallHasBeenHit
+
+def graduate_student_into_agent(student_class):
+    class GraduatedAgent:
+        def __init__(self, name, team, index):
+            self.name = name
+            self.team = team
+            self.index = index
+            self.student = student_class()
+        def get_output_vector(self, game_tick_packet):
+            s = EasyGameState(game_tick_packet, self.team, self.index)
+            return sanitize_output_vector(self.student.get_output_vector(s))
+    return GraduatedAgent
+
 
 def main():
     import sys
