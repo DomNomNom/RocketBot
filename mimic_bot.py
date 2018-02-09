@@ -44,6 +44,7 @@ def player_input_to_vector(player_input):
         player_input.bHandbrake,
     ]
 
+
 class Agent:
     def __init__(self, name, team, index):
         self.name = name
@@ -139,7 +140,7 @@ class Agent:
         # else:
         #     self.frames_until_bakkes_air -= 1
 
-        self.slicer.set_min_max(0, 50.0)
+        self.slicer.set_min_max(0, 2.0)
 
         time_in_history = time - self.mimic_start_time + self.history.start_time
         if time - self.mimic_start_time > replay_duration or self.should_reset_mimic:
@@ -149,31 +150,39 @@ class Agent:
             )
 
             rand_axis = 100000 * np.random.rand(1)[0] - 50000
-            rand3 = 100000 * np.random.rand(3) - 50000
             # print ()
             # bakkes.rcon(bakkes_reset_command)
             bakkes.rcon(';'.join([
                 # bakkes_reset_command,
-                'ball location 0 0 100',
                 # 'ball location -2000 2000 100',
-                'ball location 3000 3000 100',
+                'ball location 0 0 100',
                 'ball velocity 0 0 0',
                 'ball angularvelocity 0 0 0',
 
                 # 'player location -3000 3000 20',
                 # 'player location -200 200 200',
-                'player location 3100 2000 10',
-                # 'player location -200 200 20',
+                # 'player location 3100 2000 10',
+                'player location 700 -50 20',
                 'player velocity 0 0 0',
                 'player rotation 0 0 0',
                 'player angularvelocity 0 0 0',
                 # 'player rotation 0 0 50000',
                 # 'player rotation 0 0 32800',
-                'player rotation 0 15800 0 ',
+                # 'player rotation 0 15800 0 ',
+                'player rotation 0 0 0',
                 # 'player rotation {} {} {}'.format(*rand3),
                 # 'player rotation -49000 0 0',
                 # 'player rotation -50000 0 0',
-                # 'player rotation -9800000 0 0',
+                # # 'player rotation -9800000 0 0',
+
+
+                # # Float testing rig
+                # 'ball location 0 0 100',
+                # 'ball velocity 0 0 0',
+                # 'ball angularvelocity 0 0 0',
+                # # 'player angularvelocity 0 0 0',
+                # 'player angularvelocity {} {} {}'.format(*(10 * (np.random.rand(3) - 0.5))),
+                # 'player rotation {} {} {}'.format(*(100000 * np.random.rand(3) - 50000)),
             ]))  ## HAAX
             print('ball reset')
             self.mimic_start_time = time

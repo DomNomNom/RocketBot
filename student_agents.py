@@ -275,17 +275,26 @@ def get_pitch_yaw_roll(s, forward, up=UP):
     roll_vel  =  dot(car.angular_vel, car.forward)
 
     # avoid getting stuck in directly-opposite states
-    if abs(roll_vel) < .3 and dot(car.up, up) < -.98 and dot(car.forward, forward) > .8:
-        roll = 1.0
+    if dot(car.up, up) < -.8 and dot(car.forward, forward) > .8:#abs(roll_vel) < .3 and dot(car.up, up) < -.98 and dot(car.forward, forward) > .8:
+        if roll == 0:
+            roll = 1
+        roll *= 1e10
+    if dot(car.forward, forward) < -.8:
+        if pitch == 0:
+            pitch = 1
+        pitch *= 1e10
     # TODO: do this for pitch too. (yaw not required)
     # trace(dot(car.up, up))
-    # trace(roll_vel)
+    # trace(pitch)
     # trace(roll)
 
+    if dot(car.forward, forward) < 0.0:
+        pitch_vel *= -1
+
     # PID control to stop overshooting.
-    roll  = 3*roll  + 0.25*roll_vel
-    yaw   = 3*yaw   + 0.75*yaw_vel
-    pitch = 3*pitch + 0.55*pitch_vel
+    roll  = 3*roll  + 0.30*roll_vel
+    yaw   = 3*yaw   + 0.70*yaw_vel
+    pitch = 3*pitch + 0.90*pitch_vel
 
     # only start adjusting roll once we're roughly facing the right way
     if dot(car.forward, forward) < 0:
@@ -362,7 +371,7 @@ def useful_target_pos_v1(s):
     '''
 
     # TODO: maybe adjust this as we get closer/further away
-    underestimated_time_to_ball = dist(s.car.pos, s.ball.pos) / (2.0 * MAX_CAR_SPEED)
+    underestimated_time_to_ball = dist(s.car.pos, s.ball.pos) / (1.5 * MAX_CAR_SPEED)
     prediction_duration = clamp(underestimated_time_to_ball, 0.02, 2.0) #0.2
     # prediction_duration = 0.2
     ball_path = get_ball_path(s, prediction_duration)
@@ -428,10 +437,12 @@ class NomBot_v1(StudentAgent):
         if s.is_kickoff_time:
             return self.kickoff_strategy.get_output_vector(s)
 
-        # Special situations
-        backrolling = is_ball_backboard_rolling(s)
-        if backrolling:
-            return self.offdefence_strategy.get_output_vector(s)
+        # # Special situations
+        # This currently isn't that useful
+        # backrolling = is_ball_backboard_rolling(s)
+        # if backrolling:
+        #     return self.offdefence_strategy.get_output_vector(s)
+
         return self.normal_strategy.get_output_vector(s)
 
 class OffenderDefenderWaiter(StudentAgent):
@@ -456,12 +467,17 @@ class KickoffSpecialist(StudentAgent):
     def get_output_vector(self, s):
         if s.car.on_ground:
             self.last_time_on_ground = s.time
+        target_pos = s.ball.pos - 0.8 * BALL_RADIUS * normalize(z0(s.enemy_goal_center))
+
         if dist(s.car.pos, s.ball.pos) > 1100:
-            return drive_to_pos(s, s.ball.pos)
+            return drive_to_pos(s, target_pos)
+        closest_enemy_distance = min(dist(c.pos, s.ball.pos) for c in s.opponents) if len(s.opponents) else 100000
+        if closest_enemy_distance - dist(s.car.pos, s.ball.pos) > 700:
+            # Opponents are too slow, don't jump.
+            return drive_to_pos(s, target_pos, boost=False)
 
         # Jump time
         out = [0]*8
-        target_pos = s.ball.pos
         dir_to_target = normalize(target_pos - s.car.pos)
 
         if s.car.double_jumped:
@@ -525,7 +541,7 @@ class FlipTowardsBall(StudentAgent):
         else:
             out[OUT_VEC_THROTTLE] = 1  # recovery from turtling
             if s.car.double_jumped:
-                if s.time - self.last_time_of_double_jump > 0.47:  # wait for the flip to mostly complete
+                if s.time - self.last_time_of_double_jump > 0.2:  # wait for the flip to mostly complete
                     (
                         out[OUT_VEC_PITCH],
                         out[OUT_VEC_YAW],

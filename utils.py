@@ -89,7 +89,10 @@ class Ball(object):
 # A wrapper for the game_tick_packet
 class EasyGameState(object):
     def __init__(self, game_tick_packet, team, car_index):
+        gamecars = game_tick_packet.gamecars[:game_tick_packet.numCars]
         self.car = Car(game_tick_packet.gamecars[car_index])
+        self.opponents = [ Car(c) for c in gamecars if c.Team != team]
+        self.allies = [ Car(c) for i,c in enumerate(gamecars) if c.Team == team and i!=car_index]
         self.ball = Ball(game_tick_packet.gameball)
         self.time = game_tick_packet.gameInfo.TimeSeconds
         self.enemy_goal_dir = 1.0 if team==0 else -1.0  # Which side of the Y axis the goal is.
