@@ -1,4 +1,4 @@
-from subprocess import Popen, PIPE, TimeoutExpired, STARTUPINFO, STARTF_USESHOWWINDOW
+from subprocess import Popen, PIPE, TimeoutExpired
 import threading
 import sys
 import time
@@ -8,9 +8,13 @@ from watchdog.observers import Observer
 from watchdog.events import LoggingEventHandler
 import datetime
 import psutil
+import os
 
 SUBPROCESS_COMMAND = 'python runner.py'
-SUBPROCESS_CWD = r'C:\Users\dom\Documents\GitHub\RLBot'
+SUBPROCESS_CWD = os.path.join(  # The path for your clone of https://github.com/drssoccer55/RLBot
+    os.path.dirname(os.path.dirname(__file__)),
+    'RLBot',
+)
 
 child_process = None
 

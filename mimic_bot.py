@@ -9,25 +9,14 @@ import time
 from collections import deque
 from importlib.machinery import SourceFileLoader
 import numpy as np
-import imp
 
-# bakkes = SourceFileLoader("module.name", os.path.dirname(os.path.realpath(__file__)) + "\\bakkes.py").load_module()
-
-# from quicktracer import trace
-quicktracer = SourceFileLoader("module.name", r"C:\Users\dom\Documents\GitHub\quicktracer\quicktracer\__init__.py").load_module()
-trace = quicktracer.trace
+from quicktracer import trace
 
 import historian
 import bakkes
-# import reloader
 from controller_input import controller
-import ctype_utils
 import slicer
-import student_agents
 
-imp.reload(ctype_utils)
-imp.reload(historian)
-imp.reload(bakkes)
 
 STATE_RECORD = 'record'
 STATE_MIMIC = 'mimic'
@@ -207,7 +196,6 @@ class Agent:
 
         s = EasyGameState(game_tick_packet, self.team, self.index)
         # trace(s.car.on_ground)
-        # student_agents.is_ball_backboard_rolling(s)
         trace(s.car.pos[0])
         trace(s.car.pos[1])
 

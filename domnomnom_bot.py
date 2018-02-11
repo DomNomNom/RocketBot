@@ -1,14 +1,11 @@
-from utils import main, mag, normalize, vec2angle, rotate90degrees, closest180, clamp, clamp01, clamp11, lerp, tau, URotationToRadians
+from utils import main, mag, normalize, vec2angle, clockwise90degrees, closest180, clamp, clamp01, clamp11, lerp, tau, URotationToRadians
 if __name__ == '__main__':
     main()  # blocking
 
 import math
 import numpy as np
 from controller_input import controller
-# from quicktracer import trace
-from importlib.machinery import SourceFileLoader
-quicktracer = SourceFileLoader("module.name", r"C:\Users\dom\Documents\GitHub\quicktracer\quicktracer\__init__.py").load_module()
-trace = quicktracer.trace
+from quicktracer import trace
 
 
 
@@ -38,13 +35,13 @@ class Agent:
             math.cos(pitch) * math.cos(yaw),
             math.cos(pitch) * math.sin(yaw)
         ])
-        player_right = -rotate90degrees(player_facing_dir)
+        player_right = -clockwise90degrees(player_facing_dir)
 
         # score should be positive if going counter clockwise
         target_pos = np.array([0, 0])
         circle_outward = player_pos - target_pos
         circle_outward_dir = normalize(circle_outward)
-        circle_forward_dir = rotate90degrees(circle_outward_dir)
+        circle_forward_dir = clockwise90degrees(circle_outward_dir)
         drifting_score = player_vel.dot(player_right)
         going_around_target_score = circle_forward_dir.dot(player_vel)
         score = going_around_target_score * drifting_score
@@ -75,9 +72,6 @@ class Agent:
         # trace(should_hard_steer)
         # trace(outward_dist-steer_dist_inner)
         desired_angle = lerp(tau*.37, tau*.51, should_hard_steer)
-        # if  > 1000: desired_angle = TAU*.3
-        # # if mag(circle_outward_dir) > 1000: desired_angle = 1
-        # else: desired_angle = TAU*.45
 
         if controller.hat_toggle_north:
             return [
