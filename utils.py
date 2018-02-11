@@ -61,6 +61,7 @@ class Car(object):
         self.pos = struct_vector3_to_numpy(gamecar.Location)
         self.vel = struct_vector3_to_numpy(gamecar.Velocity)
         self.angular_vel = struct_vector3_to_numpy(gamecar.AngularVelocity)
+        self.boost = gamecar.Boost
         self.speed = mag(self.vel)
         self.to_global_matrix = rotation_to_mat(gamecar.Rotation)
         self.forward = self.to_global_matrix.dot(np.array([1.0, 0.0, 0.0]))
@@ -116,7 +117,7 @@ def graduate_student_into_agent(student_class):
 def main():
     import sys
     import os
-    os.chdir(r'C:\Users\dom\Documents\GitHub\NomBot')
+    os.chdir(os.path.dirname(__file__))
     os.system('python doms_runner.py')
     sys.exit()
 

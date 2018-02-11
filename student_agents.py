@@ -18,10 +18,6 @@ import time
 
 # Note: the variable `s` always refers to a EasyGameState here.
 
-class StudentAgent(object):
-    def get_output_vector(self, s):  # s - EasyGameState
-        raise Exception('need to override get_output_vector()')
-
 def stop_if_close(s, target_pos, r=1000):
     if mag(s.car.pos - target_pos) > 1000:
         return None
@@ -387,7 +383,11 @@ def useful_target_pos_v1(s):
     desired_ball_speed = MAX_CAR_SPEED
     desired_ball_vel = MAX_CAR_SPEED * to_goal_dir
     desired_ball_vel_change = desired_ball_vel - predicted_ball_vel
-    ball_hit_offset = -0.8 * BALL_RADIUS * normalize(desired_ball_vel)
+    normal_dir = -normalize(z0(desired_ball_vel))  # center of ball to hit point
+    # alignment = dot(normal_dir, normalize(z0(s.car.pos - predicted_ball_pos)))
+    # hit_radius = (0.9 if alignment > 0.7 else 1.5) * BALL_RADIUS
+    hit_radius = 1.0 * BALL_RADIUS
+    ball_hit_offset = hit_radius * normal_dir
     # ball_hit_offset = -0.8 * BALL_RADIUS * to_goal_dir
     target_pos = predicted_ball_pos + ball_hit_offset
 
@@ -425,6 +425,10 @@ def useful_target_pos_v1(s):
 ############################################################
 
 
+
+class StudentAgent(object):
+    def get_output_vector(self, s):  # s - EasyGameState
+        raise Exception('need to override get_output_vector()')
 
 
 class NomBot_v1(StudentAgent):
@@ -481,12 +485,13 @@ class KickoffSpecialist(StudentAgent):
         dir_to_target = normalize(target_pos - s.car.pos)
 
         if s.car.double_jumped:
+            desired_forward = z0(dir_to_target)
             if s.time - self.last_time_of_double_jump > 0.5:  # wait for the flip to mostly complete
                 (
                     out[OUT_VEC_PITCH],
                     out[OUT_VEC_YAW],
                     out[OUT_VEC_ROLL],
-                ) = get_pitch_yaw_roll(s, z0(dir_to_target))
+                ) = get_pitch_yaw_roll(s, desired_forward)
         else:
             WAIT_ALTITUDE = 0.05
             if s.time - self.last_time_on_ground > WAIT_ALTITUDE:  # Wait for the car to have some altitude
@@ -541,12 +546,15 @@ class FlipTowardsBall(StudentAgent):
         else:
             out[OUT_VEC_THROTTLE] = 1  # recovery from turtling
             if s.car.double_jumped:
+                desired_forward = z0(dir_to_target)
                 if s.time - self.last_time_of_double_jump > 0.2:  # wait for the flip to mostly complete
                     (
                         out[OUT_VEC_PITCH],
                         out[OUT_VEC_YAW],
                         out[OUT_VEC_ROLL],
-                    ) = get_pitch_yaw_roll(s, z0(dir_to_target))
+                    ) = get_pitch_yaw_roll(s, desired_forward)
+                if s.car.boost > 50 and dot(s.car.forward, desired_forward) > 0.95 and dist(target_pos, s.car.pos) > 500:
+                    out[OUT_VEC_BOOST] = 1
             else:
                 WAIT_ALTITUDE = 0.1
                 if s.time - self.last_time_on_ground > WAIT_ALTITUDE:  # Wait for the car to have some altitude
