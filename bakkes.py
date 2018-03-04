@@ -1,6 +1,6 @@
 # Wraps bakkes_repl in a subprocess and exposes it via the rcon() function
 
-from subprocess import Popen, PIPE, TimeoutExpired, STARTUPINFO, STARTF_USESHOWWINDOW
+from subprocess import Popen, PIPE
 import threading
 import os
 import sys
