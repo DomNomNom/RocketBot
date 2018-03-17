@@ -12,9 +12,11 @@ import os
 
 SUBPROCESS_COMMAND = 'python runner.py'
 SUBPROCESS_CWD = os.path.join(  # The path for your clone of https://github.com/drssoccer55/RLBot
-    os.path.dirname(os.path.dirname(__file__)),
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
     'RLBot',
 )
+print (__file__)
+print (SUBPROCESS_CWD)
 
 child_process = None
 
