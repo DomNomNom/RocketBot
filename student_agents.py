@@ -506,6 +506,30 @@ class KickoffSpecialist(StudentAgent):
                 out[OUT_VEC_JUMP] = 1
         return out
 
+def add_upwards_for_wavedash(forward):
+    forward = normalize(z0(forward))
+    return normalize(forward + 0.8 * UP)
+
+def is_away_from_walls(pos):
+    return abs(pos[TO_ORANGE]) < 4800 and abs(pos[TO_STATUE]) < 3600
+
+def wavedash_output_vector():
+    return [
+        1,  # fThrottle
+        0,  # fSteer
+        0,  # fPitch
+        0,  # fYaw
+        0,  # fRoll
+        1,  # bJump
+        0,  # bBoost
+        1,  # bHandbrake
+    ]
+
+def should_wavedash(s, last_time_in_air):
+    if not s.car.on_ground: return False
+    if not is_away_from_walls(s.car.pos): return False
+    if s.time - last_time_in_air < 0.1: return False
+    return True
 
 class FlipTowardsBall(StudentAgent):
     def __init__(self):
