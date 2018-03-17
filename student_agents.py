@@ -421,7 +421,7 @@ def useful_target_pos_v1(s):
 
 ############################################################
 # pure functions above.
-# stateful classes below.
+# potentially stateful classes below.
 ############################################################
 
 
