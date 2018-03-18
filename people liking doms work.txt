@@ -51,3 +51,7 @@
 [12:37] twobackfromtheend: wtf is with the ridiculously high standard of everything you do in general @DomNomNom  :seismiHUG:
 [21:36] hallo_doei: @DomNomNom how do you make so much progress so incredibly fast?
 [21:36] hallo_doei: It's amazing lol
+
+2018-03-19
+[02:26] DomNomNom (NomBot): We now have an integration test!
+[02:34] dtracers (Saltie): Thank you very much for this!
