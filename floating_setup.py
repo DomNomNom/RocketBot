@@ -54,7 +54,7 @@ def set_random_rotation_and_angular_vel(player_index):
         'player {} angularvelocity {} {} {}'.format(player_index, (    10 * (random() - 0.5)),     10 * (random() - 0.5),     10 * (random() - 0.5)),
     ]))
 
-# Note: This is similat to utils.graduate_student_into_agent(AirStabilizerTowardsBall)
+# Note: This is similar to utils.graduate_student_into_agent(AirStabilizerTowardsBall)
 #       but we want the index to call bakkesmod with it.
 class Agent:
     def __init__(self, name, team, index):
