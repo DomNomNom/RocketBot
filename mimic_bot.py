@@ -115,20 +115,6 @@ class Agent:
             return [0] * 8  # No action
         replay_duration = self.history.end_time - self.history.start_time
 
-
-
-        # # make the player float
-        # if not hasattr(self, 'frames_until_bakkes_air'):
-        #     self.frames_until_bakkes_air = 1
-        # if self.frames_until_bakkes_air == 0:
-        #     bakkes.rcon(';'.join([
-        #         'player location -300 0 250',
-        #         'player velocity -0 0 10',
-        #     ]))
-        #     self.frames_until_bakkes_air = 2
-        # else:
-        #     self.frames_until_bakkes_air -= 1
-
         self.slicer.set_min_max(0, 2.0)
 
         time_in_history = time - self.mimic_start_time + self.history.start_time
