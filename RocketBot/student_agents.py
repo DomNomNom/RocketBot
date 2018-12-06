@@ -1,4 +1,4 @@
-from utils import * #main, mag, normalize, vec2angle, rotate90degrees, closest180, clamp, clamp01, clamp11, lerp, tau, URotationToRadians, cross, UP, estimate_turn_radius
+from .utils import * #main, mag, normalize, vec2angle, rotate90degrees, closest180, clamp, clamp01, clamp11, lerp, tau, URotationToRadians, cross, UP, estimate_turn_radius
 if __name__ == '__main__':
     main()
 
@@ -7,12 +7,13 @@ from collections import deque, namedtuple
 
 from quicktracer import trace
 
-from tangents import get_tangent_paths, get_length_of_tangent_path
-from tangents_visualizer import TangentVisualizer
-from scorer import rms_deviation_from_diffs
+from .tangents import get_tangent_paths, get_length_of_tangent_path
+from .tangents_visualizer import TangentVisualizer
+from .scorer import rms_deviation_from_diffs
 # import basic_physics
-import marvin_atbab
-from marvin_atbab import BALL_STATE_POS, BALL_STATE_VEL, BALL_STATE_ANGULAR_VEL, BALL_STATE_TIME
+#import marvin_atbab
+#from .marvin_atbab import BALL_STATE_POS, BALL_STATE_VEL, BALL_STATE_ANGULAR_VEL, BALL_STATE_TIME
+from .marvin_atbab import *
 import time
 
 
@@ -194,7 +195,7 @@ def plan_from_ball_state(s, ball_state, target_vel):
     )
 
 def get_ball_path(s, prediction_duration):
-    return marvin_atbab.predict_b(
+    return predict_b(
         s.ball.pos,
         s.ball.vel,
         s.ball.angular_vel,
@@ -717,7 +718,7 @@ class TheoreticalPhysicist(StudentAgent):
         self.prediction_duration = 0.5 # s
 
     def get_output_vector(self, s):
-        ball_path = marvin_atbab.predict_b(s.ball.pos, s.ball.vel, s.ball.angular_vel, self.prediction_duration)
+        ball_path = predict_b(s.ball.pos, s.ball.vel, s.ball.angular_vel, self.prediction_duration)
         predicted_ball = Ball()
         prediction = ball_path[-2]
         predicted_ball.pos, predicted_ball.vel, predicted_ball.angular_vel, _ = prediction

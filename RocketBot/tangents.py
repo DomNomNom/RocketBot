@@ -1,5 +1,5 @@
 
-from vector_math import *
+from .vector_math import *
 from collections import namedtuple
 
 # Calculates stuff relating to tangents.

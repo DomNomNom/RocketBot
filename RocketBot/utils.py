@@ -3,7 +3,7 @@ import math
 import numpy as np
 from functools import reduce
 
-from vector_math import *
+from .vector_math import *
 
 
 UP = np.array([0.0, 0.0, 1.0])
@@ -101,18 +101,25 @@ class EasyGameState(object):
         self.own_goal_center   = Vec3(0, -self.enemy_goal_dir*5350, 200)
         self.is_kickoff_time = not game_tick_packet.gameInfo.bBallHasBeenHit
 
-def graduate_student_into_agent(student_class):
-    class GraduatedAgent:
-        def __init__(self, name, team, index):
-            self.name = name
-            self.team = team
-            self.index = index
-            self.student = student_class()
-        def get_output_vector(self, game_tick_packet):
-            s = EasyGameState(game_tick_packet, self.team, self.index)
-            return sanitize_output_vector(self.student.get_output_vector(s))
-    return GraduatedAgent
+class GraduatedAgent:
+    name = "Agent"
+    team = -1
+    index = -1
+    student = None
+    
+    def __init__(self, student_class, team, index):
+        self.name = "Agent"
+        self.team = team
+        self.index = index
+        self.student = student_class()
+        
+    def get_output_vector(self, game_tick_packet):
+        s = EasyGameState(game_tick_packet, self.team, self.index)
+        i = self.student.get_output_vector(s)
+        return sanitize_output_vector(i)
 
+def graduate_student_into_agent(student_class, team, index):
+    return GraduatedAgent(student_class, team, index)
 
 def main():
     import sys
