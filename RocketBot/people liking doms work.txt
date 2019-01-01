@@ -55,3 +55,15 @@
 2018-03-19
 [02:26] DomNomNom (NomBot): We now have an integration test!
 [02:34] dtracers (Saltie): Thank you very much for this!
+
+2018-12-06
+[22:49] Hytak: Quicktracer is awesome btw
+
+2018-12-31
+[10:35] DomNomNom: btw, this is what RLBot training looks like at the moment https://gfycat.com/SplendidJovialFowl
+[10:36] Bakkes: ooh sick
+[10:36] Bakkes: Is it like a framework where you can just plug your bot in?
+[10:36] Bakkes: The testing that is
+[10:36] DomNomNom: yup
+[10:36] Bakkes: noice
+
