@@ -1,2 +1,0 @@
-# NomBot
-RLBot competition entry
