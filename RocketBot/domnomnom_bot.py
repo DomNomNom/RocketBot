@@ -5,7 +5,7 @@ if __name__ == '__main__':
 import math
 import numpy as np
 from controller_input import controller
-from quicktracer import trace
+# from quicktracer import trace
 
 
 

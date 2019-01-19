@@ -1,5 +1,5 @@
 from .vector_math import *
-from quicktracer import trace
+# from quicktracer import trace
 
 # Note: "score" in this file is not scoring a goal, but an arbitrary reward
 

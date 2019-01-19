@@ -5,10 +5,10 @@ if __name__ == '__main__':
 import numpy as np
 from collections import deque, namedtuple
 
-from quicktracer import trace
+# from quicktracer import trace
+# from .tangents_visualizer import TangentVisualizer
 
 from .tangents import get_tangent_paths, get_length_of_tangent_path
-from .tangents_visualizer import TangentVisualizer
 from .scorer import rms_deviation_from_diffs
 # import basic_physics
 #import marvin_atbab
@@ -684,7 +684,7 @@ class InterceptBallWithVel(StudentAgent):
             self.best_plan = get_ball_intercept_plan(s, self.get_target_vel, previous_plan=self.best_plan)
             if not self.best_plan:
                 return failsafe_output_vector(s)
-            trace(self.best_plan.tangent_path, custom_display=TangentVisualizer, key='tangent', view_box='game')
+            # trace(self.best_plan.tangent_path, custom_display=TangentVisualizer, key='tangent', view_box='game')
             return execute_intercept_plan(s, self.best_plan)
         else:
             # Don't change plans if we're close.
@@ -693,7 +693,7 @@ class InterceptBallWithVel(StudentAgent):
                 self.best_plan.tangent_path.pos_1,
                 self.best_plan.target_vel
             )
-            trace(path, custom_display=TangentVisualizer, key='tangent', view_box='game')
+            # trace(path, custom_display=TangentVisualizer, key='tangent', view_box='game')
             return execute_tangent_path(s, path, mag(self.best_plan.target_vel))
             # trace(self.best_plan.tangent_path, custom_display=TangentVisualizer, view_box='game')
             # return drive_to_pos_vel(s, self.best_plan.tangent_path.pos_1, self.target_vel)
