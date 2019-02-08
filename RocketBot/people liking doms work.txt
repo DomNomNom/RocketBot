@@ -55,3 +55,26 @@
 2018-03-19
 [02:26] DomNomNom (NomBot): We now have an integration test!
 [02:34] dtracers (Saltie): Thank you very much for this!
+
+
+2018-12-25
+[01:56] DomNomNom (NomBot): My Christmas gift to the RLBot framework is almost ready. :christmas_tree:
+https://cdn.discordapp.com/attachments/352507627928027138/526744893280878593/Rocket_League_32-bit_DX9_Cooked_25_12_2018_1_53_01_AM.mp4
+[01:58] jeroen11dijk (NV Derevo): @DomNomNom (NomBot) that looks interesting
+[02:19] r0bbi3 (Wildfire): Seems super cool, and feels like your bot is achieving something when it got that "pass"
+[02:19] r0bbi3 (Wildfire): I like it
+[02:33] r0bbi3 (Wildfire): The way this is all done, it'll work with non-python bots right?
+[02:33] DomNomNom (NomBot): yes
+[02:34] r0bbi3 (Wildfire): I love it!
+
+2018-12-29
+https://github.com/RLBot/RLBot/pull/319#issuecomment-450468278
+[18:58] This is perfect, thanks for the swift fix on that @DomNomNom
+
+2018-12-32
+[12:35] DomNomNom: btw, this is what RLBot training looks like at the moment https://gfycat.com/SplendidJovialFowl
+[12:36] Bakkes: ooh sick
+[12:36] Bakkes: Is it like a framework where you can just plug your bot in?
+[12:36] Bakkes: The testing that is
+[12:36] DomNomNom: yup
+[12:36] Bakkes: noice
