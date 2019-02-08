@@ -117,6 +117,10 @@ class TangentVisualizer(quicktracer.Display):
 
         set_data_points(self.tangent_curve, points)
 
+    def set_view_box(self, view_box):
+        self.view_box = view_box
+        self.init_view_box(self.view_box)
+
 def set_data_points(view_box_data_item, points):
     view_box_data_item.setData(
         [p[0] for p in points],
@@ -162,9 +166,8 @@ def main():
     vel_curve_1 = pg.PlotDataItem()
 
     view_box = win.addPlot()
-    view_boxes = {'tangents': view_box}
     visualizer = TangentVisualizer()
-    visualizer.set_view_box_id('tangents')  # This is kinda breaking quicktracer encapsulation but whatever
+    visualizer.set_view_box(view_box)
 
     def update(control_points):
         center_0, vel_0, center_1, vel_1 = control_points
@@ -192,7 +195,7 @@ def main():
         tangent_paths.sort(key=get_length_of_tangent_path)
         path = tangent_paths[0]
         visualizer.add_value({quicktracer.VALUE: path})
-        visualizer.render_with_init(win, view_boxes)
+        visualizer.render_with_init(win)
 
 
     class DraggableNodes(pg.GraphItem):
@@ -272,7 +275,7 @@ def main():
     draggables.setData(pos=control_points, symbol='o', size=30, symbolBrush=pg.mkBrush('#FFFFFF40'))
 
 
-    visualizer.render_with_init(win, view_boxes)
+    visualizer.render_with_init(win)
     view_box.addItem(vel_curve_0)
     view_box.addItem(vel_curve_1)
     view_box.addItem(draggables)
