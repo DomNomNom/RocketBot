@@ -114,9 +114,9 @@ def struct_vector3_to_numpy(vec):
 
 def rotation_to_mat(rotator):
     return to_rotation_matrix(
-        URotationToRadians * rotator.pitch,
-        URotationToRadians * rotator.yaw,
-        URotationToRadians * rotator.roll
+        rotator.pitch,
+        rotator.yaw,
+        rotator.roll
     )
 
 def to_rotation_matrix(pitch, yaw, roll):
