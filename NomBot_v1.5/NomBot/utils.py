@@ -5,6 +5,7 @@ from functools import reduce
 
 from .vector_math import *
 
+from rlbot.utils.structures.game_data_struct import Physics
 
 
 def sanitize_output_vector(output_vector):
@@ -49,20 +50,10 @@ class Car(object):
         self.double_jumped = game_car.double_jumped
 
 class Ball(object):
-    def __init__(self, ball=None):
-        self.pos = Vec3(0,0,0)
-        self.vel = Vec3(0,0,0)
-        self.angular_vel = Vec3(0,0,0)
-        if ball is None:
-            return
-        if isinstance(ball, Ball):
-            self.pos = ball.pos
-            self.vel = ball.vel
-            return
-        # c-struct
-        self.pos = struct_vector3_to_numpy(ball.physics.location)
-        self.vel = struct_vector3_to_numpy(ball.physics.velocity)
-        self.angular_vel = struct_vector3_to_numpy(ball.physics.angular_velocity)
+    def __init__(self, physics: Physics):
+        self.pos = struct_vector3_to_numpy(physics.location)
+        self.vel = struct_vector3_to_numpy(physics.velocity)
+        self.angular_vel = struct_vector3_to_numpy(physics.angular_velocity)
 
 # A wrapper for the game_tick_packet
 class EasyGameState(object):
@@ -71,7 +62,7 @@ class EasyGameState(object):
         self.car = Car(game_tick_packet.game_cars[car_index])
         self.opponents = [ Car(c) for c in game_cars if c.Team != team]
         self.allies = [ Car(c) for i,c in enumerate(game_cars) if c.Team == team and i!=car_index]
-        self.ball = Ball(game_tick_packet.game_ball)
+        self.ball = Ball(game_tick_packet.game_ball.physics)
         self.time = game_tick_packet.game_info.seconds_elapsed
         self.enemy_goal_dir = 1.0 if team==0 else -1.0  # Which side of the Y axis the goal is.
         self.enemy_goal_center = Vec3(0,  self.enemy_goal_dir*5350, 200)
