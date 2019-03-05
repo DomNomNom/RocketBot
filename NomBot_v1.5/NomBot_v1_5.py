@@ -179,7 +179,7 @@ class NomBot_1_5(BaseAgent):
             lambda slice: slice.game_seconds < s.time+2.0
         )
         future_ball = Ball(predicted_slice.physics)
-        predicted_ball_pos = predicted_slice.physics.location
+        # future_ball = s.ball
         target_ball_pos = s.enemy_goal_center
         to_goal_dir = normalize(z0(target_ball_pos - future_ball.pos))
 
@@ -221,9 +221,24 @@ class NomBot_1_5(BaseAgent):
 
         return target_pos
 
+    def render_point(self, pos):
+        self.renderer.begin_rendering('nom_bot target')
+        r = 50
+        for offset in [Vec3(r,r,r), Vec3(-r,r,r), Vec3(r,-r,r), Vec3(r,r,-r)]:
+            self.renderer.draw_line_3d(
+                pos + offset,
+                pos - offset,
+                # self.renderer.create_color(200, 120, 0, 0)
+                self.renderer.create_color(255, 255, 125, 0)
+                # self.renderer.green()
+            )
+        # self.renderer.draw_string_3d(pos, 2, 2, "BALL", self.renderer.red())
+
+        self.renderer.end_rendering()
 
     def state_flip_towards_ball(self, s: EasyGameState):
         target_pos = self.get_target_pos(s)
+        self.render_point(target_pos)
         dir_to_target = normalize(target_pos - s.car.pos)
 
         out = self.controller_state
@@ -279,6 +294,7 @@ def quick_self_check():
     bot.initialize_agent()
 
     # Stub out a few things
+    from unittest.mock import MagicMock
     packet = GameTickPacket()
     packet.game_cars[0].physics.location.x = 100
     def get_ball_prediction_struct():
@@ -286,6 +302,7 @@ def quick_self_check():
         ball_prediction.num_slices = 7
         return ball_prediction
     bot.get_ball_prediction_struct = get_ball_prediction_struct
+    bot.renderer = MagicMock()
 
     bot.get_output(packet)
     print ('quick_self_check passed.')
