@@ -18,8 +18,33 @@ def get_steer_towards(s, target_pos):
     steer = angle*2.0
     return steer
 
-def get_pitch_yaw_roll(s, forward, up=UP):
-    car = s.car
+def could_reach_target_in_time(car, target_pos, max_time) -> bool:
+    """
+    Returns true if we could reach the target_pos in the allotted amount of time.
+    This function is design to be optimistic.
+    """
+    # https://www.desmos.com/calculator/1fzddmfak5
+    to_target = target_pos - car.pos
+    to_target_dist = mag(to_target)
+    if to_target_dist == 0:
+        return True
+    beginning_speed_towards_target = dot(car.vel, to_target/to_target_dist)
+    beginning_speed_towards_target = 0
+    max_speed_start_time = (MAX_CAR_SPEED - beginning_speed_towards_target) / (2*BOOST_ACCELERATION)
+    def acceleration_model(t) -> float:
+        return BOOST_ACCELERATION*t*t + beginning_speed_towards_target*t
+
+    if max_time > max_speed_start_time:  # Do we hit MAX_CAR_SPEED before max_time is up?
+        distance_travelled_towards_target = (
+            MAX_CAR_SPEED * (max_time - max_speed_start_time) +
+            acceleration_model(max_speed_start_time)
+        )
+    else:
+        distance_travelled_towards_target = acceleration_model(max_time)
+    # print('aaa', distance_travelled_towards_target)
+    return distance_travelled_towards_target >= to_target_dist
+
+def get_pitch_yaw_roll(car, forward, up=UP):
     forward = normalize(forward)
     desired_facing_angular_vel = -cross(car.forward, forward)
     desired_up_angular_vel = -cross(car.up, up)
@@ -161,6 +186,25 @@ class NomBot_1_5(BaseAgent):
         if not self.controller_state.jump:
             self.last_time_of_jump_not_pressed = s.time
 
+    def render_ball(self, ball_pos):
+        self.renderer.begin_rendering('render_ball')
+        r = 50
+        theta = np.linspace(0, np.pi*2.)
+        a = ball_pos + np.vstack([
+            r * np.sin(theta),
+            r * np.cos(theta),
+            0 *  theta
+        ]).T
+        self.renderer.draw_polyline_3d(a, self.renderer.create_color(255, 0, 255, 0))
+        # for theta in :
+        #     self.renderer.draw_line_3d(
+        #         ball_pos + offset,
+        #         ball_pos - offset,
+        #         # self.renderer.create_color(200, 120, 0, 0)
+        #         self.renderer.create_color(255, 255, 125, 0)
+        #         # self.renderer.green()
+        #     )
+        self.renderer.end_rendering()
 
 
     def get_target_pos(self, s):
@@ -176,9 +220,14 @@ class NomBot_1_5(BaseAgent):
 
         predicted_slice = bisect_ball_prediction(
             ball_prediction,
-            lambda slice: slice.game_seconds < s.time+2.0
+            lambda slice: not could_reach_target_in_time(
+                s.car,
+                Vec3(slice.physics.location.x, slice.physics.location.y, slice.physics.location.z),
+                slice.game_seconds - s.time + 300.0 / dist(s.car.pos, Vec3(slice.physics.location.x, slice.physics.location.y, slice.physics.location.z))
+            )
         )
         future_ball = Ball(predicted_slice.physics)
+        self.render_ball(future_ball.pos)
         # future_ball = s.ball
         target_ball_pos = s.enemy_goal_center
         to_goal_dir = normalize(z0(target_ball_pos - future_ball.pos))
@@ -269,7 +318,7 @@ class NomBot_1_5(BaseAgent):
                         out.pitch,
                         out.yaw,
                         out.roll,
-                    ) = get_pitch_yaw_roll(s, desired_forward)
+                    ) = get_pitch_yaw_roll(s.car, desired_forward)
                 if s.car.boost > 50 and dot(s.car.forward, desired_forward) > 0.95 and dist(target_pos, s.car.pos) > 500:
                     out.boost = True
             else:
