@@ -41,3 +41,4 @@ class EasyGameState(object):
         self.enemy_goal_center = Vec3(0,  self.enemy_goal_dir*5350, 200)
         self.own_goal_center   = Vec3(0, -self.enemy_goal_dir*5350, 200)
         self.is_kickoff_time = not game_tick_packet.game_info.is_kickoff_pause
+        self.is_round_active = game_tick_packet.game_info.is_round_active

@@ -85,7 +85,6 @@ class SpawnLocationExercise(TrainingExercise):
 
 def make_default_playlist():
     exercises = (
-        # bronze_striker.make_default_playlist()
         [
             SpawnLocationExercise(name="SpawnLocationExercise"),
             SpawnLocationExercise(name="SpawnLocationExercise"),
@@ -93,7 +92,6 @@ def make_default_playlist():
             # SpawnLocationExercise(name="SpawnLocationExercise"),
             # SpawnLocationExercise(name="SpawnLocationExercise"),
         ]
-        # [FastRollingAcrossGoalShot('wheee')]
     )
     for exercise in exercises:
         match_config = make_empty_match_config()
@@ -104,12 +102,5 @@ def make_default_playlist():
         match_config.mutators.respawn_time = '3 Seconds'
         match_config.instant_start = False
         exercise.match_config = match_config
-        # <2047,99. 2463,99. 17,01> ChampionsField
-        # <2047,99. 2559,99. 17,01> Farmstead
-        # <2047,99. 2559,99. 17,01> StarbaseArc
-        # <2047,99. 2559,99. 17,01> DFHStadium
-        # <2047,99. 2559,99. 17,01> SaltyShores
-        # <2047,99. 2559,99. 17,01> Wasteland
-
 
     return exercises

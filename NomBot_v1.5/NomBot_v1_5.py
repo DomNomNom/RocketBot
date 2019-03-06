@@ -1,12 +1,21 @@
+from enum import Enum
 from typing import Callable
 
 from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.ball_prediction_struct import Slice, BallPrediction
+from rlbot.utils.logging_utils import get_logger
 
 from NomBot.utils import EasyGameState, Ball
 from NomBot.vector_math import *
 from NomBot.constants import *
+
+def info(*args, **kwargs):
+    get_logger('NomBot').info(*args, **kwargs)
+def warning(*args, **kwargs):
+    get_logger('NomBot').warning(*args, **kwargs)
+def error(*args, **kwargs):
+    get_logger('NomBot').error(*args, **kwargs)
 
 def get_steer_towards(s, target_pos):
     towards_target = target_pos - s.car.pos
@@ -41,10 +50,14 @@ def could_reach_target_in_time(car, target_pos, max_time) -> bool:
         )
     else:
         distance_travelled_towards_target = acceleration_model(max_time)
-    # print('aaa', distance_travelled_towards_target)
     return distance_travelled_towards_target >= to_target_dist
 
+
 def get_pitch_yaw_roll(car, forward, up=UP):
+    """
+    Returns a (pitch, yaw, roll) tuple which try to orient the car with the nose pointing
+    in the @forward direction and with the roof pointing in the @up direction
+    """
     forward = normalize(forward)
     desired_facing_angular_vel = -cross(car.forward, forward)
     desired_up_angular_vel = -cross(car.up, up)
@@ -138,6 +151,38 @@ def flip_towards(s, target_pos):
     acceleration_dir = normalize(desired_vel - s.car.vel)
     return flip_in_direction(s, acceleration_dir)
 
+class NomBotState(Enum):
+    KICKOFF = 1
+    FLIP_TO_BALL = 2
+    ROUND_INACTIVE = 3
+
+class KickOffPosition(Enum):
+    FAR_BACK = 1 # Vec3(0.0, 4608, 17),
+    BACK     = 3 # Vec3(256.0, 3840, 17),
+    CORNER   = 2 # Vec3(1952, 2464, 17),
+
+    @staticmethod
+    def get_closest(pos) -> 'KickOffPosition':
+        pos = np.abs(pos)
+        dists = [
+            (dist(pos, kick_start), enum)
+            for kick_start, enum in [
+                (Vec3(   0.0, 4608, 30),  KickOffPosition.FAR_BACK),
+                (Vec3( 256.0, 3840, 30),  KickOffPosition.BACK    ),
+                (Vec3(2048.0, 2560, 30),  KickOffPosition.CORNER  ),
+            ]
+        ]
+        min_dist, enum = min(dists)
+        if min_dist > 30.:
+            # error(f'wtf, did not start on one of the expected kickoff positions. min_dist={min_dist} pos={pos}')
+            return enum
+        return enum
+
+class StrategyComponent:
+    def __init__(self, duration:float, callback):
+        self.duration = duration
+        self.callback = callback
+
 
 class NomBot_1_5(BaseAgent):
 
@@ -154,6 +199,12 @@ class NomBot_1_5(BaseAgent):
         self.last_time_of_jump_not_pressed = 0.0
         self.last_time_in_air = 0.0
         self.last_time_on_ground = 0.0
+        self.last_time_round_inactive = 0.0
+        self.state: NomBotState = NomBotState.FLIP_TO_BALL
+        self.next_state: NomBotState = NomBotState.FLIP_TO_BALL
+        self.kickoff_position: KickOffPosition = KickOffPosition.FAR_BACK
+        self.trace_lines = []
+
 
 
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
@@ -162,7 +213,28 @@ class NomBot_1_5(BaseAgent):
 
         self.maintain_historic_variables_pre(s)
 
-        self.state_flip_towards_ball(s)
+        out = self.controller_state
+        out.jump = False
+        out.boost = False
+        out.handbrake = False
+
+        # fallback to kickoff if the game state has changed
+        if packet.game_info.is_kickoff_pause and self.state != NomBotState.KICKOFF:
+            self.state = NomBotState.KICKOFF
+            self.kickoff_position = KickOffPosition.get_closest(s.car.pos)
+        if not packet.game_info.is_round_active:
+            self.state = NomBotState.ROUND_INACTIVE
+
+        self.next_state = self.state  # keep the current one unless explicity changed
+        if self.state == NomBotState.KICKOFF:
+            self.state_kickoff(s)
+        elif self.state == NomBotState.FLIP_TO_BALL:
+            self.state_flip_towards_ball(s)
+        elif self.state == NomBotState.ROUND_INACTIVE:
+            self.state_round_inactive()
+        else:
+            raise Exception(f'unhandled state: {self.state}')
+        self.state = self.next_state
 
         # Sanitize our output
         out = self.controller_state
@@ -174,12 +246,103 @@ class NomBot_1_5(BaseAgent):
         out.jump = bool(out.jump)
         out.boost = bool(out.boost)
         out.handbrake = bool(out.handbrake)
+        self.render_trace()
         self.maintain_historic_variables_post(s)
         return out
+
+    def state_round_inactive(self):
+        self.controller_state.steer = 0.0
+        self.controller_state.boost = True
+
+    def state_kickoff(self, s):
+        hit_with_corner_strat = [
+            StrategyComponent(duration=0.1, callback=lambda: self.kickoff_prep_to_hit(s, jump=True)),
+            StrategyComponent(duration=0.2, callback=lambda: self.kickoff_prep_to_hit(s, jump=False)),
+            StrategyComponent(duration=1.0, callback=lambda: self.kickoff_flip_to_hit_ball(s)),
+        ]
+        self.kickoff_config = {
+            KickOffPosition.FAR_BACK: [
+                StrategyComponent(duration=1.0, callback=lambda: self.kickoff_boost_to_ball(s)),
+                StrategyComponent(duration=0.1, callback=lambda: self.kickoff_drive_right()),
+                StrategyComponent(duration=1.1, callback=lambda: self.kickoff_boost_to_ball(s)),
+            ] + hit_with_corner_strat,
+            KickOffPosition.BACK: [
+                StrategyComponent(duration=0.90, callback=lambda: self.kickoff_drive_center(s)),
+                StrategyComponent(duration=1.05, callback=lambda: self.kickoff_boost_to_ball(s)),
+            ] + hit_with_corner_strat,
+            KickOffPosition.CORNER: [
+                StrategyComponent(duration=1.70, callback=lambda: self.kickoff_boost_to_ball(s)),
+            ] + hit_with_corner_strat,
+        }
+
+        strategy = self.kickoff_config[self.kickoff_position]
+        kickoff_duration_so_far = s.time - self.last_time_round_inactive
+        component_start_time = 0.0
+        found_component = None
+        for i, component in enumerate(strategy):
+            if component_start_time > kickoff_duration_so_far:
+                warn('omg, overshot')
+                found_component = component
+                break
+            if component_start_time + component.duration > kickoff_duration_so_far:
+                found_component = component
+                break
+            component_start_time += component.duration
+
+        self.trace(f'kickoff progress: {round(i)+1} / {len(strategy)}')
+        if found_component is None:
+            # We're past the sum of component durations
+            assert kickoff_duration_so_far > sum(c.duration for c in strategy)
+            self.state_flip_towards_ball(s)
+            self.next_state = NomBotState.FLIP_TO_BALL
+            # info(f'end of kickoff strategy. kickoff_duration_so_far={kickoff_duration_so_far}')
+            return
+
+        found_component.callback()
+
+    def kickoff_drive_right(self):
+        self.controller_state.boost = True
+        self.controller_state.throttle = 1
+        self.controller_state.steer = 1
+
+    def kickoff_drive_center(self, s):
+        self.controller_state.boost = True
+        self.controller_state.throttle = 1
+        self.controller_state.steer = get_steer_towards(s, Vec3(0, s.car.pos[1]*0.6, s.car.pos[2]))
+
+    def kickoff_boost_to_ball(self, s):
+        self.controller_state.steer = get_steer_towards(s, s.ball.pos)
+        self.controller_state.boost = True
+
+    def kickoff_prep_to_hit(self, s, jump: bool):
+        # pos = s.car.pos
+        # if pos[1] > 1 pos.
+        yaw_ish = dot(cross(s.ball.pos - s.car.pos, s.enemy_goal_center - s.car.pos), UP)
+        yaw_ish = -1 if yaw_ish < 0 else 1
+        if s.car.pos[1] > 0:
+            yaw_ish *= -1
+        out = self.controller_state
+        out.jump = jump
+        out.throttle = 1
+        desired_forward = normalize(z0(s.ball.pos - s.car.pos)) + Vec3(.5*yaw_ish, 0, .6)
+        (out.pitch,out.yaw,out.roll) = get_pitch_yaw_roll(
+            s.car,
+            desired_forward,
+            up=normalize(Vec3(12.5*yaw_ish, 1, 0))
+        )
+
+    def kickoff_flip_to_hit_ball(self, s):
+        out = self.controller_state
+        out.jump = True
+        (out.pitch,out.yaw,out.roll) = flip_in_direction(s, s.ball.pos - s.car.pos)
+
 
     def maintain_historic_variables_pre(self, s: EasyGameState):
         if s.car.on_ground: self.last_time_on_ground = s.time
         else:               self.last_time_in_air    = s.time
+
+        if not s.is_round_active:
+            self.last_time_round_inactive = s.time
 
     def maintain_historic_variables_post(self, s: EasyGameState):
         self.jumped_last_frame = self.controller_state.jump
@@ -196,14 +359,6 @@ class NomBot_1_5(BaseAgent):
             0 *  theta
         ]).T
         self.renderer.draw_polyline_3d(a, self.renderer.create_color(255, 0, 255, 0))
-        # for theta in :
-        #     self.renderer.draw_line_3d(
-        #         ball_pos + offset,
-        #         ball_pos - offset,
-        #         # self.renderer.create_color(200, 120, 0, 0)
-        #         self.renderer.create_color(255, 255, 125, 0)
-        #         # self.renderer.green()
-        #     )
         self.renderer.end_rendering()
 
 
@@ -291,9 +446,6 @@ class NomBot_1_5(BaseAgent):
         dir_to_target = normalize(target_pos - s.car.pos)
 
         out = self.controller_state
-        out.jump = False
-        out.boost = False
-        out.handbrake = False
 
         vertical_to_ball = dot(target_pos - s.car.pos, UP)
         if s.car.on_ground:
@@ -338,6 +490,20 @@ class NomBot_1_5(BaseAgent):
         return out
 
 
+    def trace(self, line: str):
+        self.trace_lines.append(line)
+    def render_trace(self):
+        self.renderer.begin_rendering('trace')
+        self.renderer.draw_string_2d(
+            100, 300,
+            3, 3,
+            '\n'.join(self.trace_lines),
+            self.renderer.red()
+        )
+        self.renderer.end_rendering()
+        self.trace_lines = []
+
+
 def quick_self_check():
     bot = NomBot_1_5('bot name', 0, 0)
     bot.initialize_agent()
@@ -354,7 +520,7 @@ def quick_self_check():
     bot.renderer = MagicMock()
 
     bot.get_output(packet)
-    print ('quick_self_check passed.')
+    info('quick_self_check passed.')
 
 
 if __name__ == '__main__':
