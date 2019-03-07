@@ -197,6 +197,7 @@ class NomBot_1_5(BaseAgent):
         self.jumped_last_frame = False
         self.last_time_of_double_jump = 0.0
         self.last_time_of_jump_not_pressed = 0.0
+        self.last_double_jump_time = 0.0
         self.last_time_in_air = 0.0
         self.last_time_on_ground = 0.0
         self.last_time_round_inactive = 0.0
@@ -213,6 +214,7 @@ class NomBot_1_5(BaseAgent):
 
         self.maintain_historic_variables_pre(s)
 
+        if s.car.double_jumped: self.last_double_jump_time = s.time
         out = self.controller_state
         out.jump = False
         out.boost = False
@@ -225,16 +227,45 @@ class NomBot_1_5(BaseAgent):
         if not packet.game_info.is_round_active:
             self.state = NomBotState.ROUND_INACTIVE
 
-        self.next_state = self.state  # keep the current one unless explicity changed
-        if self.state == NomBotState.KICKOFF:
-            self.state_kickoff(s)
-        elif self.state == NomBotState.FLIP_TO_BALL:
-            self.state_flip_towards_ball(s)
-        elif self.state == NomBotState.ROUND_INACTIVE:
-            self.state_round_inactive()
+        self.trace(f'jumped={s.car.jumped}')
+        self.trace(f'double_jumped={s.car.double_jumped}')
+        out.pitch = 0
+        out.yaw = -1
+        out.roll = 0
+        out.jump = False
+
+        if s.car.double_jumped or self.jumped_last_frame or dist(s.car.pos, s.ball.pos) < 200:
+            out.pitch, out.yaw, out.roll = get_pitch_yaw_roll(
+                s.car,
+                Vec3(-1, 0, 0),
+                -UP
+                # 0.1*Vec3(1, 1, -1) * -normalize(s.car.pos - s.ball.pos)
+            )
+            # if s.car.vel[0] > s.ball.vel[0]*3 + 20:
+            #     out.boost = True
         else:
-            raise Exception(f'unhandled state: {self.state}')
-        self.state = self.next_state
+            out.pitch = 0
+            out.yaw = -1
+            out.roll = 1
+            out.jump = True
+        self.trace(f'pitch={round(out.pitch, 2)}')
+        self.trace(f'yaw={round(out.yaw, 2)}')
+        self.trace(f'roll={round(out.roll, 2)}')
+        self.trace(f'jump={out.jump}')
+        self.trace(f'dist={dist(s.car.pos, s.ball.pos)}')
+        self.trace(f'has_wheel_contact={packet.game_cars[0].has_wheel_contact}')
+        # self.trace(f'contact_time={s.time - self.last_double_jump_time}')
+
+        # self.next_state = self.state  # keep the current one unless explicity changed
+        # if self.state == NomBotState.KICKOFF:
+        #     self.state_kickoff(s)
+        # elif self.state == NomBotState.FLIP_TO_BALL:
+        #     self.state_flip_towards_ball(s)
+        # elif self.state == NomBotState.ROUND_INACTIVE:
+        #     self.state_round_inactive()
+        # else:
+        #     raise Exception(f'unhandled state: {self.state}')
+        # self.state = self.next_state
 
         # Sanitize our output
         out = self.controller_state
@@ -339,6 +370,7 @@ class NomBot_1_5(BaseAgent):
 
     def maintain_historic_variables_pre(self, s: EasyGameState):
         if s.car.on_ground: self.last_time_on_ground = s.time
+        if s.car.double_jumped: self.last_double_jump_time = s.time
         else:               self.last_time_in_air    = s.time
 
         if not s.is_round_active:
@@ -442,6 +474,7 @@ class NomBot_1_5(BaseAgent):
 
     def state_flip_towards_ball(self, s: EasyGameState):
         target_pos = self.get_target_pos(s)
+        target_pos = s.car.pos + Vec3(0, 500, 100) # HAAX
         self.render_point(target_pos)
         dir_to_target = normalize(target_pos - s.car.pos)
 
@@ -464,7 +497,7 @@ class NomBot_1_5(BaseAgent):
         else:
             out.throttle = 1.0  # recovery from turtling
             if s.car.double_jumped:
-                desired_forward = z0(dir_to_target)
+                # desired_forward = z0(dir_to_target) # HAAX
                 if s.time - self.last_time_of_double_jump > 0.2:  # wait for the flip to mostly complete
                     (
                         out.pitch,
@@ -486,7 +519,6 @@ class NomBot_1_5(BaseAgent):
                 elif s.time - self.last_time_on_ground < 0.5*WAIT_ALTITUDE:
                     out.jump = True
 
-        self.jumped_last_frame = out.jump
         return out
 
 

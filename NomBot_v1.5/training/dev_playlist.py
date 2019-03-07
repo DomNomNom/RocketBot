@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-import match_configs
 from math import pi
 
 from rlbottraining.common_exercises.common_base_exercises import StrikerExercise
@@ -8,6 +7,8 @@ from rlbottraining.rng import SeededRandomNumberGenerator
 from rlbottraining.training_exercise import Playlist
 
 from rlbot.utils.game_state_util import GameState, BoostState, BallState, CarState, Physics, Vector3, Rotator
+
+import match_configs
 
 # The ball is rolling towards goal but you still need to put it in
 @dataclass

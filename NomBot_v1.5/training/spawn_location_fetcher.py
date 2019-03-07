@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-import match_configs
 from math import pi
 from typing import Optional
 
@@ -15,6 +14,8 @@ from rlbottraining.rng import SeededRandomNumberGenerator
 from rlbottraining.training_exercise import Playlist, TrainingExercise
 from rlbottraining.match_configs import make_empty_match_config
 from rlbottraining.paths import BotConfigs
+
+import match_configs
 
 class SpawnLocationGrader(CompoundGrader):
     """
