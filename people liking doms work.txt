@@ -69,3 +69,16 @@ This file exists to keep Dom motivated about doing good stuff.
 [10:36] DomNomNom: yup
 [10:36] Bakkes: noice
 
+2019-03-10
+[20:29] snokbaz: @DomNomNom are u creater of nombot?
+[20:29] DomNomNom: yup
+[20:29] Redox (Brainfrick / ExcelBot): Maybe a few things will change, but again I can't really say since I don't work on the code
+[20:29] snokbaz: great bot, im a fan now
+[20:29] DomNomNom: :D
+[20:30] Redox (Brainfrick / ExcelBot): NomBot = most charming bot, change my mind
+
+2019-03-14
+[23:21] DomNomNom: Today was a productive night: http://domnomnom.com/RLBotTraining/test/
+[00:32] Skyborg (Skybot) ULTIMATE R0bbi3: @DomNomNom is that a preview of what the local GUI will show or will everything be uploaded to your site?
+[00:36] DomNomNom: It's a local GUI that is designed such that it can be made public. I'm planning on having the auto league publish via this mechanism
+[00:37] Redox (Brainfrick / ExcelBot): that seems really cool
