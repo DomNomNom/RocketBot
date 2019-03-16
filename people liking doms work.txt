@@ -83,3 +83,7 @@ https://github.com/RLBot/RLBot/pull/319#issuecomment-450468278
 [10:36] DomNomNom: yup
 [10:36] Bakkes: noice
 
+2019-03-16
+[21:19] Calculated_Will (UTC+1): where can I find RLBot training tutorial videos?
+[21:22] DomNomNom: @Calculated_Will (UTC+1) https://youtu.be/uGFmOZCpel8?list=PL6LKXu1RlPdxh9vxmG1y2sghQwK47_gCH
+[21:22] Calculated_Will (UTC+1): thanks you
