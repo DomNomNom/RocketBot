@@ -61,6 +61,20 @@ This file exists to keep Dom motivated about doing good stuff.
 2018-12-06
 [22:49] Hytak: Quicktracer is awesome btw
 
+2018-12-25
+[01:56] DomNomNom (NomBot): My Christmas gift to the RLBot framework is almost ready. :christmas_tree:
+https://cdn.discordapp.com/attachments/352507627928027138/526744893280878593/Rocket_League_32-bit_DX9_Cooked_25_12_2018_1_53_01_AM.mp4
+[01:58] jeroen11dijk (NV Derevo): @DomNomNom (NomBot) that looks interesting
+[02:19] r0bbi3 (Wildfire): Seems super cool, and feels like your bot is achieving something when it got that "pass"
+[02:19] r0bbi3 (Wildfire): I like it
+[02:33] r0bbi3 (Wildfire): The way this is all done, it'll work with non-python bots right?
+[02:33] DomNomNom (NomBot): yes
+[02:34] r0bbi3 (Wildfire): I love it!
+
+2018-12-29
+https://github.com/RLBot/RLBot/pull/319#issuecomment-450468278
+[18:58] This is perfect, thanks for the swift fix on that @DomNomNom
+
 2018-12-31
 [10:35] DomNomNom: btw, this is what RLBot training looks like at the moment https://gfycat.com/SplendidJovialFowl
 [10:36] Bakkes: ooh sick
@@ -82,3 +96,8 @@ This file exists to keep Dom motivated about doing good stuff.
 [00:32] Skyborg (Skybot) ULTIMATE R0bbi3: @DomNomNom is that a preview of what the local GUI will show or will everything be uploaded to your site?
 [00:36] DomNomNom: It's a local GUI that is designed such that it can be made public. I'm planning on having the auto league publish via this mechanism
 [00:37] Redox (Brainfrick / ExcelBot): that seems really cool
+
+2019-03-16
+[21:19] Calculated_Will (UTC+1): where can I find RLBot training tutorial videos?
+[21:22] DomNomNom: @Calculated_Will (UTC+1) https://youtu.be/uGFmOZCpel8?list=PL6LKXu1RlPdxh9vxmG1y2sghQwK47_gCH
+[21:22] Calculated_Will (UTC+1): thanks you
