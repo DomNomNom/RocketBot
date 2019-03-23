@@ -16,10 +16,21 @@ except ImportError:
 from nombotutils.quick_check import quick_bot_check
 from nombotutils.game_state import EasyGameState
 from nombotutils.constants import TO_STATUE, TO_ORANGE, TO_CEILING
-from nombotutils.vector_math import mag, dist, normalize, clamp, clamp01, clamp11, lerp, is_close, xy_only, z0
-from nombotutils.rendering import trace
+from nombotutils.vector_math import Vec2, Vec3, mag, dist, normalize, clamp, clamp01, clamp11, lerp, is_close, xy_only, z0
+from nombotutils.rendering import trace, magic_renderer, render_ball_circle
 
 logger = get_logger('CannonBaller')
+
+def get_cannon_vel(start: Vec3, target: Vec3, flight_duration: float, gravity: float):
+    # https://www.desmos.com/calculator/ceuii0dldg
+    to_target = target - start
+    with magic_renderer() as renderer:
+        render_ball_circle(renderer, target)
+
+    vel_xy = z0(to_target) / flight_duration
+    vel_z = Vec3(0, 0, to_target[TO_CEILING] / flight_duration + -.5*gravity*flight_duration)
+    return vel_xy + vel_z
+
 
 class CannonBaller(BaseAgent):
 
@@ -31,6 +42,7 @@ class CannonBaller(BaseAgent):
         self.controller_state = SimpleControllerState()
 
         # Variables about previous states.
+        self.target_pos = Vec3(0,0,100)
 
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
 
@@ -38,15 +50,14 @@ class CannonBaller(BaseAgent):
         # trace(mag(s.car.vel))
 
         if s.car.pos[TO_CEILING] < 100:
+            self.target_pos = self.get_target_pos(s)
+            vel = get_cannon_vel(s.car.pos, self.target_pos, 2.1, packet.game_info.world_gravity_z)
             self.set_game_state(GameState(
                 cars={
                     self.index: CarState(
                         physics=Physics(
                             # rotation=Rotator(0, pi / 2, 0),
-                            velocity=Vector3(
-                                0,
-                                10000 if s.car.pos[TO_ORANGE] < 0 else -10000,
-                                1000),
+                            velocity=Vector3(*vel),
                             # angular_velocity=Vector3(0, 0, 0)
                             ),
                         jumped=False,
@@ -74,6 +85,10 @@ class CannonBaller(BaseAgent):
         '''
         Returns a position that seems good to go towards right now.
         '''
+        out = Vec3(2000, 1000, 200)
+        if s.car.pos[TO_ORANGE] > 0:
+            out[TO_ORANGE] *= -1
+        return out
 
         # TODO: maybe adjust this as we get closer/further away
         underestimated_time_to_ball = dist(s.car.pos, s.ball.pos) / (1.5 * MAX_CAR_SPEED)
@@ -90,7 +105,6 @@ class CannonBaller(BaseAgent):
             )
         )
         future_ball = Ball(predicted_slice.physics)
-        self.render_ball(future_ball.pos)
         # future_ball = s.ball
         target_ball_pos = s.enemy_goal_center
         to_goal_dir = normalize(z0(target_ball_pos - future_ball.pos))
