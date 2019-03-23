@@ -98,22 +98,22 @@ class TraceWrapper:
     def __call__(self, packet: GameTickPacket) -> SimpleControllerState:
         self.last_call_time = time.time()
         agent = self.agent
-        out = self.real_get_output_func(packet)
+        try:
+            return self.real_get_output_func(packet)
+        finally:
+            # On first call, we accumulated messages twice as we the TraceWrapper
+            # was not called since the original call webt straight into the real_get_output_func
+            if self.first_call:
+                self.messages = self.messages[:len(self.messages)//2]
+                self.first_call = False
 
-        # On first call, we accumulated messages twice as we the TraceWrapper
-        # was not called since the original call webt straight into the real_get_output_func
-        if self.first_call:
-            self.messages = self.messages[:len(self.messages)//2]
-            self.first_call = False
+            agent.renderer.begin_rendering(group_id=self.get_render_group())
+            draw_pos = packet.game_cars[agent.index].physics.location
+            for i, message in enumerate(self.messages):
+                agent.renderer.draw_string_2d(300, 100 + 100 * i, 3, 3, message, agent.renderer.white())
+            self.messages = []
+            agent.renderer.end_rendering()
 
-        agent.renderer.begin_rendering(group_id=self.get_render_group())
-        draw_pos = packet.game_cars[agent.index].physics.location
-        for i, message in enumerate(self.messages):
-            agent.renderer.draw_string_2d(300, 100 + 100 * i, 3, 3, message, agent.renderer.white())
-        self.messages = []
-        agent.renderer.end_rendering()
-
-        return out
 
     def get_render_group(self) -> str:
         return f'nombotutils_trace_{str(self.agent.index)}'

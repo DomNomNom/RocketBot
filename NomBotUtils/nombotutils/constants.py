@@ -14,6 +14,6 @@ TO_CEILING = 2  # Z - UP is already taken
 
 # Physics constants
 BALL_RADIUS = 92.
-MAX_CAR_SPEED = 2300.005
+MAX_CAR_SPEED = 2300.0
 FLIP_SPEED_CHANGE = 500.0  # TODO: refine constant
 BOOST_ACCELERATION = 991.666
