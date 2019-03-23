@@ -4,6 +4,9 @@ from rlbot.utils.structures.ball_prediction_struct import Slice, BallPrediction
 from rlbot.utils.logging_utils import get_logger
 from rlbot.utils.game_state_util import GameState, BoostState, BallState, CarState, Physics, Vector3, Rotator
 
+from math import atan2, asin, acos
+import numpy as np
+
 try:  # NomBotUtils Bootstrap
     import nombotutils
 except ImportError:
@@ -49,17 +52,23 @@ class CannonBaller(BaseAgent):
         s = EasyGameState(packet, self.team, self.index)
         # trace(mag(s.car.vel))
 
+
         if s.car.pos[TO_CEILING] < 100:
             self.target_pos = self.get_target_pos(s)
-            vel = get_cannon_vel(s.car.pos, self.target_pos, 2.1, packet.game_info.world_gravity_z)
+            vel = get_cannon_vel(s.car.pos, self.target_pos, 4.1, packet.game_info.world_gravity_z)
+            print(vel[TO_CEILING])
             self.set_game_state(GameState(
                 cars={
                     self.index: CarState(
                         physics=Physics(
-                            # rotation=Rotator(0, pi / 2, 0),
-                            velocity=Vector3(*vel),
-                            # angular_velocity=Vector3(0, 0, 0)
+                            rotation=Rotator(
+                                acos(mag(z0(vel)) / mag(vel)),
+                                atan2(vel[1], vel[0]),
+                                0,
                             ),
+                            velocity=Vector3(*vel),
+                            angular_velocity=Vector3(0, 0, 0)
+                        ),
                         jumped=False,
                         double_jumped=False,
                         boost_amount=100)
