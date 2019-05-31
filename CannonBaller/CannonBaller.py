@@ -1,7 +1,6 @@
 from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.ball_prediction_struct import Slice, BallPrediction
-from rlbot.utils.logging_utils import get_logger
 from rlbot.utils.game_state_util import GameState, BoostState, BallState, CarState, Physics, Vector3, Rotator
 
 from math import atan2, asin, acos
@@ -25,7 +24,6 @@ from nombotutils.rendering import trace, magic_renderer, render_ball_circle
 from nombotutils.movement import get_pitch_yaw_roll
 from nombotutils.ball_prediction import bisect_ball_prediction, ball_pos
 
-logger = get_logger('CannonBaller')
 
 def get_cannon_vel(start: Vec3, target: Vec3, flight_duration: float, gravity_z: float):
     # https://www.desmos.com/calculator/ceuii0dldg
@@ -45,7 +43,7 @@ class CannonBaller(BaseAgent):
     """
 
     min_replan_period = 0.5
-    min_time_on_ground = 0.3
+    min_time_on_ground = 0.1
     prepare_to_land_period = .6
 
     def initialize_agent(self):
@@ -59,21 +57,55 @@ class CannonBaller(BaseAgent):
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
 
         s = EasyGameState(packet, self.team, self.index)
+
         gravity_z = packet.game_info.world_gravity_z
         # trace(mag(s.car.vel))
 
         # Re plan our trajectory.
         if not s.car.on_ground:
             self.last_time_in_air = s.time
-        if s.time - self.last_time_in_air > self.min_time_on_ground and s.time - self.last_replan_time > self.min_replan_period:
+        if s.time - self.last_time_in_air > self.min_time_on_ground and s.time - self.last_replan_time > self.min_replan_period and packet.game_info.is_round_active:
             self.last_replan_time = s.time
-            # self.target_pos = self.get_target_pos(s)
-            def pick_offset_target(slice):
-                pos = ball_pos(slice)
-                pos += + 50 * UP
-                return pos
+            def pick_offset_target(predicted_slice):
+                # pos = ball_pos(predicted_slice)
+                # self.target_pos = self.get_target_pos(s)
+                # pos += + 50 * UP
+                # return pos
 
-            time_offset = 0.0
+                future_ball = Ball(predicted_slice.physics)
+                target_ball_pos = s.enemy_goal_center
+                to_goal_dir = normalize(z0(target_ball_pos - future_ball.pos))
+
+                # DONE: predict the ball by some small amount.
+                # DONE: avoid ball when coming back
+                # DONE: hit at an angle to change ball velocity
+                desired_ball_speed = MAX_CAR_SPEED
+                desired_ball_vel = MAX_CAR_SPEED * to_goal_dir
+                desired_ball_vel_change = desired_ball_vel - future_ball.vel
+                normal_dir = -normalize(z0(desired_ball_vel))  # center of ball to hit point
+                # alignment = dot(normal_dir, normalize(z0(s.car.pos - future_ball.pos)))
+                # hit_radius = (0.9 if alignment > 0.7 else 1.5) * BALL_RADIUS
+                hit_radius = 0.9 * BALL_RADIUS
+                ball_hit_offset = hit_radius * normal_dir
+                # ball_hit_offset = -0.8 * BALL_RADIUS * to_goal_dir
+                target_pos = future_ball.pos + ball_hit_offset
+
+                # Avoid the ball when coming back
+                if dist(s.car.pos, target_ball_pos) < dist(future_ball.pos, target_ball_pos):
+                    # TODO: make sure options are in bounds
+                    avoid_back_ball_radius = BALL_RADIUS * 5.0
+                    options = [
+                        future_ball.pos + avoid_back_ball_radius * normalize(Vec3( 1, -s.enemy_goal_dir, 0)),
+                        future_ball.pos + avoid_back_ball_radius * normalize(Vec3(-1, -s.enemy_goal_dir, 0)),
+                    ]
+                    best_avoid_option = min(options, key=lambda avoid_ball_pos: dist(s.car.pos, avoid_ball_pos))
+                    # TODO: factor in current velocity maybe
+                    target_pos = best_avoid_option
+
+                target_pos += 10.0 * UP  # fudge
+                return target_pos
+
+            time_offset = 0.1
             predicted_slice = bisect_ball_prediction(
                 self.get_ball_prediction_struct(),
                 lambda slice: mag(get_cannon_vel(
@@ -104,8 +136,6 @@ class CannonBaller(BaseAgent):
                             velocity=Vector3(*vel),
                             angular_velocity=Vector3(*(vel)),
                         ),
-                        jumped=False,
-                        double_jumped=False,
                         boost_amount=100)
                 },
             ))
@@ -114,11 +144,44 @@ class CannonBaller(BaseAgent):
         forward = s.car.vel + Vec3(0, 0, 0.1*gravity_z)
         time_to_touchdown = max(solve_quadratic(.5*gravity_z, s.car.vel[TO_CEILING], s.car.pos[TO_CEILING]), default=0)
         is_landing = time_to_touchdown < self.prepare_to_land_period or (s.car.pos[TO_CEILING] < 100 and not s.car.vel[TO_CEILING] > 100)
-        out.pitch, out.yaw, out.roll = get_pitch_yaw_roll(
-            s.car,
-            forward,
-            UP if is_landing else normalize(lerp(s.car.up, cross(forward, s.car.up), 0.1)),
+        wall_sign = (-1 if s.car.pos[TO_STATUE] < 0 else 1)
+        wall = 4096 * wall_sign
+        if s.car.vel[TO_STATUE] == 0:
+            time_to_wall = 10000
+        else:
+            time_to_wall = (wall-s.car.pos[TO_STATUE]) / s.car.vel[TO_STATUE]
+
+        if time_to_wall < 0:
+            time_to_wall = 10000
+        time_to_ceiling = min(
+            [t for t in solve_quadratic(.5*gravity_z, s.car.vel[TO_CEILING], s.car.pos[TO_CEILING]-2000) if t > 0],
+            default=10000
         )
+
+        if time_to_ceiling < self.prepare_to_land_period or s.car.pos[TO_CEILING] > 1900:
+            out.pitch, out.yaw, out.roll = get_pitch_yaw_roll(
+                s.car,
+                z0(forward),
+                -UP,
+            )
+        elif time_to_wall < self.prepare_to_land_period:
+            out.pitch, out.yaw, out.roll = get_pitch_yaw_roll(
+                s.car,
+                Vec3(0, forward[TO_ORANGE], forward[TO_CEILING]),
+                Vec3(-wall_sign, 0, 0),
+            )
+        elif is_landing:
+            out.pitch, out.yaw, out.roll = get_pitch_yaw_roll(
+                s.car,
+                z0(forward),
+                UP ,
+            )
+        else:
+            out.pitch, out.yaw, out.roll = get_pitch_yaw_roll(
+                s.car,
+                forward,
+                normalize(lerp(s.car.up, cross(forward, s.car.up), 0.1)),
+            )
         out.boost = False
         out.throttle = 0
         out.throttle = 1 if is_landing else 0
@@ -134,62 +197,8 @@ class CannonBaller(BaseAgent):
         out.handbrake = bool(out.handbrake)
         return out
 
-    def get_target_pos(self, s):
-        '''
-        Returns a position that seems good to go towards right now.
-        '''
-        # out = Vec3(2000, 1000, 200)
-        # if s.car.pos[TO_ORANGE] > 0:
-        #     out[TO_ORANGE] *= -1
-        # return out
 
-        # TODO: maybe adjust this as we get closer/further away
-        underestimated_time_to_ball = dist(s.car.pos, s.ball.pos) / (1.5 * MAX_CAR_SPEED)
-        prediction_duration = clamp(underestimated_time_to_ball, 0.02, 2.0) #0.2
-        # prediction_duration = 0.2
-        ball_prediction = self.get_ball_prediction_struct()
 
-        predicted_slice = bisect_ball_prediction(
-            ball_prediction,
-            lambda slice: mag(get_cannon_vel(
-                s.car.pos,
-                ball_pos(slice),
-                slice.game_seconds-s.time,
-                s.gravity_z
-            )) > MAX_CAR_SPEED
-        )
-
-        future_ball = Ball(predicted_slice.physics)
-        target_ball_pos = s.enemy_goal_center
-        to_goal_dir = normalize(z0(target_ball_pos - future_ball.pos))
-
-        # DONE: predict the ball by some small amount.
-        # DONE: avoid ball when coming back
-        # DONE: hit at an angle to change ball velocity
-        desired_ball_speed = MAX_CAR_SPEED
-        desired_ball_vel = MAX_CAR_SPEED * to_goal_dir
-        desired_ball_vel_change = desired_ball_vel - future_ball.vel
-        normal_dir = -normalize(z0(desired_ball_vel))  # center of ball to hit point
-        # alignment = dot(normal_dir, normalize(z0(s.car.pos - future_ball.pos)))
-        # hit_radius = (0.9 if alignment > 0.7 else 1.5) * BALL_RADIUS
-        hit_radius = 1.0 * BALL_RADIUS
-        ball_hit_offset = hit_radius * normal_dir
-        # ball_hit_offset = -0.8 * BALL_RADIUS * to_goal_dir
-        target_pos = future_ball.pos + ball_hit_offset
-
-        # Avoid the ball when coming back
-        if dist(s.car.pos, target_ball_pos) < dist(future_ball.pos, target_ball_pos):
-            # TODO: make sure options are in bounds
-            avoid_back_ball_radius = BALL_RADIUS * 5.0
-            options = [
-                future_ball.pos + avoid_back_ball_radius * normalize(Vec3( 1, -s.enemy_goal_dir, 0)),
-                future_ball.pos + avoid_back_ball_radius * normalize(Vec3(-1, -s.enemy_goal_dir, 0)),
-            ]
-            best_avoid_option = min(options, key=lambda avoid_ball_pos: dist(s.car.pos, avoid_ball_pos))
-            # TODO: factor in current velocity maybe
-            target_pos = best_avoid_option
-
-        return target_pos
 
 
 
