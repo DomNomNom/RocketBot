@@ -1,6 +1,7 @@
 from rlbot.agents.base_agent import BaseAgent
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from unittest.mock import MagicMock
+from rlbot.utils.structures.ball_prediction_struct import BallPrediction
 
 def quick_bot_check(bot: BaseAgent):
     bot.initialize_agent()
