@@ -31,11 +31,11 @@ except ImportError:
     sys.path.append(str(utils_path))
 from nombotutils.quick_check import quick_bot_check
 from nombotutils.game_state import EasyGameState, Ball
-from nombotutils.constants import TO_STATUE, TO_ORANGE, TO_CEILING, UP, MAX_CAR_SPEED, BALL_RADIUS
-from nombotutils.vector_math import Vec2, Vec3, mag, dist, normalize, clamp, clamp01, clamp11, lerp, is_close, xy_only, z0, cross
+from nombotutils.constants import TO_STATUE, TO_ORANGE, TO_CEILING, UP, MAX_CAR_SPEED, BALL_RADIUS, GOAL_CENTER_TO_POST
+from nombotutils.vector_math import Vec2, Vec3, mag, dist, normalize, clamp, clamp01, clamp11, lerp, is_close, xy_only, z0, cross, struct_vector3_to_numpy
 from nombotutils.nonlinear_math import solve_quadratic
 from nombotutils.rendering import trace, magic_renderer, render_ball_circle
-from nombotutils.movement import get_pitch_yaw_roll
+from nombotutils.movement import get_pitch_yaw_roll, flip_towards
 from nombotutils.ball_prediction import bisect_ball_prediction, ball_pos
 
 
@@ -146,9 +146,12 @@ class Defendinator(BaseAgent):
         state = self.State.GROUND
         if car_obj.has_wheel_contact:
             if is_travelling_towards_line:
-                if ball_intercept.physics.location.z > self.MAX_HIGH_JUMP_Z:
+                if abs(ball_intercept.physics.location.x) > GOAL_CENTER_TO_POST:
+                    # TODO: Side defence.
                     state = self.State.IDLE
-                if ball_intercept.physics.location.z > self.MIN_HIGH_JUMP_Z:
+                elif ball_intercept.physics.location.z > self.MAX_HIGH_JUMP_Z:
+                    state = self.State.IDLE
+                elif ball_intercept.physics.location.z > self.MIN_HIGH_JUMP_Z:
                     if seconds_until_intercept < self.high_jump_before_intercept(ball_intercept.physics.location.z):
                         state = self.State.HIGH_JUMP
                     else:
@@ -187,8 +190,11 @@ class Defendinator(BaseAgent):
 
         if state != self.State.DODGING:
             self.ticks_in_dodge_state = 0
-        controller_state = SimpleControllerState()
+        out = SimpleControllerState()
 
+        def clamp_into_goal(desired_x):
+            max_abs_x = GOAL_CENTER_TO_POST - 1.5*BALL_RADIUS
+            return clamp(desired_x, -max_abs_x, max_abs_x)
         def forward_adjust(desired_x):
             return (
                 # PD-controller
@@ -198,35 +204,50 @@ class Defendinator(BaseAgent):
 
         if state == self.State.GROUND:
             # Drive to ball_intercept.physics.location.x
-            controller_state.throttle = forward_adjust(ball_intercept.physics.location.x)
-            controller_state.boost = controller_state.throttle > 200.
+            out.throttle = forward_adjust(clamp_into_goal(ball_intercept.physics.location.x))
+            out.boost = out.throttle > 200.
 
         elif state == self.State.JUMPING:
-            controller_state.jump = True
+            out.jump = True
 
         elif state == self.State.DODGING:
             self.ticks_in_dodge_state += 1
             if self.ticks_in_dodge_state < 2:
-                controller_state.jump = False
+                out.jump = False
             elif self.ticks_in_dodge_state == 3:
-                controller_state.roll = 1
-                controller_state.pitch = -0.008*forward_adjust(ball_intercept.physics.location.x)
-                normalize = 1/sqrt(controller_state.roll**2 + controller_state.pitch**2)
-                controller_state.roll *= normalize
-                controller_state.pitch *= normalize
-                if controller_state.roll < .4:
-                    # if we really need to go forwards/back, don't go sideways at all
-                     controller_state.roll = 0
-                controller_state.jump = True
+                dodge_point = lerp(
+                    struct_vector3_to_numpy(ball_intercept.physics.location),
+                    s.ball.pos,
+                    .5  # fudge
+                )
+                out.pitch, out.yaw, out.roll = flip_towards(
+                    s,
+                    dodge_point
+                )
+                # out.roll = 1
+                # out.pitch = -0.008*forward_adjust(ball_intercept.physics.location.x)
+                # length = 1/sqrt(out.roll**2 + out.pitch**2)
+                # out.roll *= length
+                # out.pitch *= length
+                # if out.roll < .4:
+                #     # if we really need to go forwards/back, don't go sideways at all
+                #      out.roll = 0
+                out.jump = True
             else:
-                controller_state.jump = False
+                out.jump = False
 
         elif state == self.State.IDLE:
-            desired_car_x = 0.4 * game_tick_packet.game_ball.physics.location.x
-            controller_state.throttle = forward_adjust(desired_car_x)
+            desired_car_x = clamp_into_goal(
+                0.4 * (
+                    game_tick_packet.game_ball.physics.location.x +
+                    .5 * game_tick_packet.game_ball.physics.velocity.x
+                )
+            )
+            out.throttle = forward_adjust(desired_car_x)
             is_close_x = abs(car.location.x - desired_car_x) < 50
-            if is_close_x and game_tick_packet.game_info.seconds_elapsed % 1 < .5:
-                controller_state.throttle = -1
+            time_ratio = game_tick_packet.game_info.seconds_elapsed % 2
+            if is_close_x and time_ratio < .5:
+                out.throttle = -1
             # Try to stay aligned with the x axis.
             car_yaw = zero_centered_angle(car.rotation.yaw)
             to_desired_car_y = desired_car_y - car.location.y
@@ -235,24 +256,21 @@ class Defendinator(BaseAgent):
                 desired_yaw *= -1
 
             car_yaw_vel = car.angular_velocity.z
-            controller_state.steer = ( # PD-controller
+            out.steer = ( # PD-controller
                 5.0 * (desired_yaw - car_yaw) +
                 0.1 * (0 - car_yaw_vel)
             )
-            if controller_state.throttle < 1:
-                controller_state.steer *= -1
+            if out.throttle < 1:
+                out.steer *= -1
             if not car_obj.has_wheel_contact:
-                # Hacky pitch/yaw/roll control. See NomBot for a better implementation.
-                # Only works because desired rotation vector is (0,0,0).
-                controller_state.pitch = -4 * car.rotation.pitch
-                controller_state.yaw   = -4 * car.rotation.yaw
-                controller_state.roll  = -5 * car.rotation.roll
-                controller_state.pitch = min(1, max(-1, controller_state.pitch))
-                controller_state.roll  = min(1, max(-1, controller_state.roll))
-                controller_state.yaw   = min(1, max(-1, controller_state.yaw))
-                get_pitch_yaw_roll(
+                desired_forward = normalize(Vec3(
+                    1,
+                    .001 * (desired_car_y - car.location.y),
+                    0
+                ))
+                out.pitch, out.yaw, out.roll = get_pitch_yaw_roll(
                     s.car,
-                    Vec3(-1, 0, 0),
+                    desired_forward,
                 )
 
             # asign stuff just for rendering.
@@ -262,9 +280,9 @@ class Defendinator(BaseAgent):
 
         elif state == self.State.HIGH_JUMP:
             z = car.location.z
-            controller_state.jump = not (110 < z < 120)
+            out.jump = not (110 < z < 120)
             if car_obj.double_jumped:
-                controller_state.pitch = min(1, max(-1, 5*(.9-car.rotation.pitch)))
+                out.pitch = min(1, max(-1, 5*(.9-car.rotation.pitch)))
 
         elif state == self.State.HIGH_JUMP_GROUND:
             if seconds_until_intercept == 0:
@@ -272,17 +290,27 @@ class Defendinator(BaseAgent):
             else:
                 desired_vel_x = (ball_intercept.physics.location.x - car.location.x) / seconds_until_intercept
                 desired_vel_x *= 1.1
-            controller_state.throttle = (desired_vel_x - car.velocity.x)
+            out.throttle = (desired_vel_x - car.velocity.x)
 
         else:
             self.logger.warn(f'invalid state {state}')
 
-        controller_state.throttle = clamp(controller_state.throttle, -1, 1)
-        controller_state.steer = clamp(controller_state.steer, -1, 1)
+        trace(state)
 
         self.render_ball_intercept(ball_intercept, seconds_until_intercept, state)
 
-        return controller_state
+        out.throttle = clamp(out.throttle, -1, 1)
+        out.steer = clamp(out.steer, -1, 1)
+
+        out.steer = clamp11(out.steer)
+        out.throttle = clamp11(out.throttle)
+        out.pitch = clamp11(out.pitch)
+        out.yaw = clamp11(out.yaw)
+        out.roll = clamp11(out.roll)
+        out.jump = bool(out.jump)
+        out.boost = bool(out.boost)
+        out.handbrake = bool(out.handbrake)
+        return out
 
     def render_ball_intercept(self, ball_intercept: BallPredictionSlice, seconds_until_intercept: float, state):
         self.renderer.begin_rendering('block intercept')

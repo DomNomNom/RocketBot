@@ -146,7 +146,6 @@ def flip_towards(s, target_pos):
     Takes into account velocity
     '''
     towards_target_dir = normalize(target_pos - s.car.pos)
-    # desired_speed =
     desired_vel = towards_target_dir * min(MAX_CAR_SPEED*1.05, s.car.speed + FLIP_SPEED_CHANGE*1.0)
     acceleration_dir = normalize(desired_vel - s.car.vel)
     return flip_in_direction(s, acceleration_dir)

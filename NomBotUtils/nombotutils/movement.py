@@ -1,5 +1,5 @@
-from nombotutils.vector_math import normalize, dot, cross
-from nombotutils.constants import UP
+from nombotutils.vector_math import normalize, dot, cross, z0
+from nombotutils.constants import UP, MAX_CAR_SPEED, FLIP_SPEED_CHANGE
 
 
 def get_pitch_yaw_roll(car, forward, up=UP):
@@ -47,3 +47,35 @@ def get_pitch_yaw_roll(car, forward, up=UP):
     # yaw = 0
     # roll = 0
     return (pitch, yaw, roll)
+
+def flip_in_direction(s, target_direction):
+    '''
+    returns a (pitch, yaw, roll) tuple which will make the car flip in the @target_direction
+
+    Flip testing notes:
+    I call it flipping, others call it air-rolling, but I dislike "rolling" in this context as it implies it's slow.
+    Flipping will set your vertical speed to 0.
+    "flip_forward" is the normalized direction for car.forward projected onto the horizontal plane.
+    I define a "front flip" to be the flip where the cars nose turns towards the wheels.
+    When front flipping, velocity is added in the flip_forward direction.
+    This implies that if you pich your car up slightly more than 90degrees and front flip, you'll gain speed in the direction what used to be your backwards (before pitching up).
+    car-orientation-roll does not affect flip_forward.
+    '''
+    target_direction = normalize(target_direction)
+    flip_forward = normalize(z0(s.car.forward))
+    flip_right = cross(flip_forward, UP)
+
+    yaw = 0.0
+    pitch = -dot(target_direction, flip_forward)
+    roll = -dot(target_direction, flip_right)
+    # pitch = 0
+    return (pitch, yaw, roll)
+
+def flip_towards(s, target_pos):
+    '''
+    Takes into account velocity
+    '''
+    towards_target_dir = normalize(target_pos - s.car.pos)
+    desired_vel = towards_target_dir * min(MAX_CAR_SPEED*1.05, s.car.speed + FLIP_SPEED_CHANGE*1.0)
+    acceleration_dir = normalize(desired_vel - s.car.vel)
+    return flip_in_direction(s, acceleration_dir)

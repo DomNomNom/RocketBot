@@ -29,7 +29,7 @@ from rlbottraining.paths import BotConfigs
 def make_default_playlist() -> Playlist:
     exercises = [
         VersusLineGoalie('VersusLineGoalie'),
-        SecondShot('SecondShot'),
+        # SecondShot('SecondShot'),
     ]
     for exercise in exercises:
         exercise.match_config = versus_line_goalie_match_config(
