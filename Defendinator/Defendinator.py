@@ -7,17 +7,15 @@ from math import pi
 
 
 from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
+from rlbot.utils.game_state_util import GameState, BoostState, BallState, CarState, Physics, Vector3, Rotator
 from rlbot.utils.structures.ball_prediction_struct import BallPrediction, Slice as BallPredictionSlice
+from rlbot.utils.structures.ball_prediction_struct import Slice, BallPrediction
 from rlbot.utils.structures.game_data_struct import GameTickPacket, Vector3
 
 from math import tau, sin, cos, tan, copysign, sqrt
 import numpy as np
 
 
-from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
-from rlbot.utils.structures.game_data_struct import GameTickPacket
-from rlbot.utils.structures.ball_prediction_struct import Slice, BallPrediction
-from rlbot.utils.game_state_util import GameState, BoostState, BallState, CarState, Physics, Vector3, Rotator
 
 
 try:  # NomBotUtils Bootstrap
@@ -32,7 +30,7 @@ except ImportError:
 from nombotutils.quick_check import quick_bot_check
 from nombotutils.game_state import EasyGameState, Ball
 from nombotutils.constants import TO_STATUE, TO_ORANGE, TO_CEILING, UP, MAX_CAR_SPEED, BALL_RADIUS, GOAL_CENTER_TO_POST
-from nombotutils.vector_math import Vec2, Vec3, mag, dist, normalize, clamp, clamp01, clamp11, lerp, is_close, xy_only, z0, cross, struct_vector3_to_numpy
+from nombotutils.vector_math import Vec2, Vec3, mag, dist, normalize, clamp, clamp01, clamp11, lerp, is_close, xy_only, z0, cross, struct_vector3_to_numpy, dot, vec2angle
 from nombotutils.nonlinear_math import solve_quadratic
 from nombotutils.rendering import trace, magic_renderer, render_ball_circle
 from nombotutils.movement import get_pitch_yaw_roll, flip_towards
@@ -63,6 +61,16 @@ def obj_distance(a, b):
     Returns the distance between two objects which have a "physics" (type Physics) property.
     """
     return distance(a.physics.location, b.physics.location)
+
+def get_steer_towards(s, target_pos):
+    towards_target = target_pos - s.car.pos
+    target_on_car_plane = np.array([
+        dot(towards_target, s.car.forward),
+        dot(towards_target, s.car.right),
+    ])
+    angle = vec2angle(target_on_car_plane)
+    steer = angle*2.0
+    return steer
 
 
 
@@ -98,6 +106,7 @@ class Defendinator(BaseAgent):
         IDLE = 4
         HIGH_JUMP = 5
         HIGH_JUMP_GROUND = 6
+        KICKOFF = 7
     assert len(State) == len(State.__members__)
 
     def __init__(self, *args, **kwargs):
@@ -144,7 +153,9 @@ class Defendinator(BaseAgent):
         seconds_until_doge = seconds_until_intercept - self.DODGE_BEFORE_INTERCEPT_SECONDS
 
         state = self.State.GROUND
-        if car_obj.has_wheel_contact:
+        if game_tick_packet.game_info.is_kickoff_pause:
+            state = self.State.KICKOFF
+        elif car_obj.has_wheel_contact:
             if is_travelling_towards_line:
                 if abs(ball_intercept.physics.location.x) > GOAL_CENTER_TO_POST:
                     # TODO: Side defence.
@@ -236,6 +247,16 @@ class Defendinator(BaseAgent):
             else:
                 out.jump = False
 
+        elif state == self.State.KICKOFF:
+            target_pos = Vec3(-3072, copysign(4096, s.car.pos[1]), 0)  # corner boost
+            # self.renderer.draw_rect_3d(target_pos, 100, 100, True, self.renderer.pink(), True)
+            forward = False
+            if s.car.pos[0] > 1500:
+                target_pos[0] *= -1
+                forward = True
+            out.steer = get_steer_towards(s, target_pos)
+            out.throttle = 1 if forward else -1
+
         elif state == self.State.IDLE:
             desired_car_x = clamp_into_goal(
                 0.4 * (
@@ -243,11 +264,14 @@ class Defendinator(BaseAgent):
                     .5 * game_tick_packet.game_ball.physics.velocity.x
                 )
             )
-            out.throttle = forward_adjust(desired_car_x)
-            is_close_x = abs(car.location.x - desired_car_x) < 50
+            # Back and forth to go to goal
             time_ratio = game_tick_packet.game_info.seconds_elapsed % 2
-            if is_close_x and time_ratio < .5:
-                out.throttle = -1
+            is_close_x = abs(car.location.x - desired_car_x) < 50
+            if time_ratio < .5:
+                desired_car_x *= -1
+            out.throttle = forward_adjust(desired_car_x)
+
+
             # Try to stay aligned with the x axis.
             car_yaw = zero_centered_angle(car.rotation.yaw)
             to_desired_car_y = desired_car_y - car.location.y
@@ -294,8 +318,6 @@ class Defendinator(BaseAgent):
 
         else:
             self.logger.warn(f'invalid state {state}')
-
-        trace(state)
 
         self.render_ball_intercept(ball_intercept, seconds_until_intercept, state)
 
