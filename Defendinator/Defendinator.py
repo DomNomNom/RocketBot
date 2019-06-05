@@ -134,6 +134,10 @@ class Defendinator(BaseAgent):
         intercept_y = car_y + copysign(self.AIM_Z_DIST, to_ball_y)
         prediction_struct = self.get_ball_prediction_struct()
         ball_intercept = prediction_struct.slices[0]
+        to_enemy_goal_y = 1 if self.team == 0 else -1
+        desired_car_y = -5200 * to_enemy_goal_y + self.DESIRED_OFFSET_FROM_OWN_GOAL_Y * to_enemy_goal_y
+        self.render_horizontal_line(desired_car_y, self.MIN_HIGH_JUMP_Z)
+
         for i, next_intercept in zip(range(prediction_struct.num_slices), prediction_struct.slices):
             if i == 0 or i == 1:
                 continue
@@ -145,18 +149,25 @@ class Defendinator(BaseAgent):
             else:
                 # Do not search further: we do not care about backboard bounces which might come closer.
                 break
-        is_travelling_towards_line = ball_intercept.physics.velocity.y * to_ball_y < 0
+        ball_is_travelling_towards_line = ball_intercept.physics.velocity.y * to_ball_y < 0
         ball_intercept.physics.location.y = intercept_y
+
+        other_defenders = [
+            car for car in s.allies if (
+                abs(car.pos[TO_ORANGE] - intercept_y) < 5.0 * BALL_RADIUS
+                and abs(car.pos[TO_STATUE]) < 1.2*GOAL_CENTER_TO_POST
+            )
+        ]
 
         seconds_until_intercept = ball_intercept.game_seconds - game_tick_packet.game_info.seconds_elapsed
         seconds_until_jump = seconds_until_intercept - self.JUMP_BEFORE_INTERCEPT_SECONDS
         seconds_until_doge = seconds_until_intercept - self.DODGE_BEFORE_INTERCEPT_SECONDS
 
         state = self.State.GROUND
-        if game_tick_packet.game_info.is_kickoff_pause:
+        if game_tick_packet.game_info.is_kickoff_pause and abs(car_y - desired_car_y) > BALL_RADIUS:
             state = self.State.KICKOFF
         elif car_obj.has_wheel_contact:
-            if is_travelling_towards_line:
+            if ball_is_travelling_towards_line:
                 if abs(ball_intercept.physics.location.x) > GOAL_CENTER_TO_POST:
                     # TODO: Side defence.
                     state = self.State.IDLE
@@ -175,7 +186,7 @@ class Defendinator(BaseAgent):
             else:
                 state = self.State.IDLE
         else:
-            if not is_travelling_towards_line:
+            if not ball_is_travelling_towards_line:
                 state = self.State.IDLE
             elif ball_intercept.physics.location.z > self.MIN_HIGH_JUMP_Z:
                 state = self.State.HIGH_JUMP
@@ -187,11 +198,17 @@ class Defendinator(BaseAgent):
                 else:
                     state = self.State.DODGING
 
+
+        # Don't over commit. Rely on team mates to jump for it if they're closer and in line wit the ball.
+        if state in [self.State.HIGH_JUMP, self.State.JUMPING, self.State.HIGH_JUMP_GROUND]:
+            if any((
+                        dist(other.pos, s.ball.pos) < dist(s.ball.pos, s.car.pos)
+                         and 0.0 < dot(normalize(s.ball.pos - s.car.pos), other.pos - s.car.pos) < dist(s.ball.pos, s.car.pos)
+                    ) for other in other_defenders):
+                state = self.State.IDLE
+
         assert state
 
-        to_enemy_goal_y = 1 if self.team == 0 else -1
-        desired_car_y = -5120 * to_enemy_goal_y + self.DESIRED_OFFSET_FROM_OWN_GOAL_Y * to_enemy_goal_y
-        self.render_horizontal_line(desired_car_y, self.MIN_HIGH_JUMP_Z)
 
         # De-noise state
         self.state_history_counter[self.state_history.popleft()] -= 1
@@ -213,9 +230,22 @@ class Defendinator(BaseAgent):
                 0.3 * (0 - car.velocity.x)
             )
 
+        def avoid_others_x(desired_x):
+            for other in other_defenders:
+                other_x = clamp_into_goal(other.pos[TO_STATUE])*1.001
+                self_x = s.car.pos[TO_STATUE]
+                if abs(other_x - desired_x) < abs(self_x - desired_x):
+                    desired_x = other_x + copysign(BALL_RADIUS*4.0, self_x-other_x)
+
+                # other_ratio = (desired_x - self_x) / (desired_x - other_x)
+                # # if there is a car between us and the desired_x, then don't go through that car.
+                # if 0 < other_ratio < 1:
+                #     desired_x = other_x + copysign(BALL_RADIUS*4.0, self_x-other_x)
+            return desired_x
+
         if state == self.State.GROUND:
             # Drive to ball_intercept.physics.location.x
-            out.throttle = forward_adjust(clamp_into_goal(ball_intercept.physics.location.x))
+            out.throttle = forward_adjust(clamp_into_goal(avoid_others_x(ball_intercept.physics.location.x)))
             out.boost = out.throttle > 200.
 
         elif state == self.State.JUMPING:
@@ -248,27 +278,25 @@ class Defendinator(BaseAgent):
                 out.jump = False
 
         elif state == self.State.KICKOFF:
-            target_pos = Vec3(-3072, copysign(4096, s.car.pos[1]), 0)  # corner boost
+            target_pos = Vec3(copysign(GOAL_CENTER_TO_POST*0.8, s.car.pos[0]), desired_car_y, 0)  # corner boost
             # self.renderer.draw_rect_3d(target_pos, 100, 100, True, self.renderer.pink(), True)
-            forward = False
-            if s.car.pos[0] > 1500:
-                target_pos[0] *= -1
-                forward = True
+            forward = True
             out.steer = get_steer_towards(s, target_pos)
-            out.throttle = 1 if forward else -1
+            out.throttle = -(s.car.pos[TO_ORANGE] - .99 * desired_car_y) + .1 * s.car.vel[TO_ORANGE]
 
         elif state == self.State.IDLE:
-            desired_car_x = clamp_into_goal(
-                0.4 * (
+            desired_car_x = 0.4 * (
                     game_tick_packet.game_ball.physics.location.x +
                     .5 * game_tick_packet.game_ball.physics.velocity.x
                 )
-            )
+
             # Back and forth to go to goal
-            time_ratio = game_tick_packet.game_info.seconds_elapsed % 2
+            time_ratio = (game_tick_packet.game_info.seconds_elapsed) % 2
             is_close_x = abs(car.location.x - desired_car_x) < 50
             if time_ratio < .5:
                 desired_car_x *= -1
+            desired_car_x = avoid_others_x(desired_car_x)
+            desired_car_x = clamp_into_goal(desired_car_x)
             out.throttle = forward_adjust(desired_car_x)
 
 
