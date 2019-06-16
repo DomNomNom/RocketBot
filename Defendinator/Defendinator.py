@@ -99,6 +99,9 @@ class Defendinator(BaseAgent):
 
     DESIRED_OFFSET_FROM_OWN_GOAL_Y = 100
 
+    MAX_CONVENIENT_JUMP_HEIGHT = 3*BALL_RADIUS
+    MAX_CONVENIENT_JUMP_DISTANCE = 3*BALL_RADIUS
+
     class State(Enum):
         GROUND = 1
         JUMPING = 2
@@ -198,6 +201,17 @@ class Defendinator(BaseAgent):
                 else:
                     state = self.State.DODGING
 
+        # Flip to the ball if convenient
+        if state == self.State.IDLE:
+            near_future_ball = ball_pos(bisect_ball_prediction(prediction_struct, lambda slice: (
+                slice.game_seconds - s.time < self.JUMP_BEFORE_INTERCEPT_SECONDS
+            )))
+            if (
+                    dist(near_future_ball, s.car.pos) < self.MAX_CONVENIENT_JUMP_DISTANCE
+                    and near_future_ball[TO_CEILING] < self.MAX_CONVENIENT_JUMP_HEIGHT
+                    and abs(near_future_ball[TO_ORANGE]) < abs(s.car.pos[TO_ORANGE])
+                    ):
+                state = self.State.JUMPING
 
         # Don't over commit. Rely on team mates to jump for it if they're closer and in line wit the ball.
         if state in [self.State.HIGH_JUMP, self.State.JUMPING, self.State.HIGH_JUMP_GROUND]:
