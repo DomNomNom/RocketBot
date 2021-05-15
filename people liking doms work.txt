@@ -104,3 +104,8 @@ https://github.com/RLBot/RLBot/pull/319#issuecomment-450468278
 
 2019-03-25
 [01:06] Redox: wow this PR is amazing dom
+
+2019-10-27
+[13:58] tarehart (ReliefBot): this is also super useful: https://pypi.org/project/quicktracer/
+[13:58] tarehart (ReliefBot): the way you might use it is to do `trace(my_car.velocity.x)` or something like that, instead of printing it out
+[16:07] JayTheYggdrasil(Twiggy + HHGOMP): :heart: DomNomNom
